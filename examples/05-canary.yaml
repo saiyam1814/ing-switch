@@ -1,0 +1,152 @@
+# Example 05: Canary Deployment
+# Demonstrates: canary, canary-weight, canary-by-header, canary-by-header-value, canary-by-cookie
+# Migration complexity: COMPLEX
+# Target:
+#   Traefik: Two Ingresses with weighted services (Traefik WRR)
+#   Gateway API: HTTPRoute with multiple backendRefs and weights (native support)
+
+---
+# STABLE: Main production Ingress (receives 95% of traffic)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-stable
+  namespace: production
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - myapp.example.com
+      secretName: myapp-tls
+  rules:
+    - host: myapp.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: myapp-stable
+                port:
+                  number: 80
+
+---
+# CANARY: Canary Ingress (receives 5% of traffic by weight)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-canary
+  namespace: production
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "5"
+    nginx.ingress.kubernetes.io/canary-weight-total: "100"
+    # Also route users with X-Canary: always header to canary regardless of weight
+    nginx.ingress.kubernetes.io/canary-by-header: "X-Canary"
+    nginx.ingress.kubernetes.io/canary-by-header-value: "always"
+    # Users with canary=always cookie always go to canary
+    nginx.ingress.kubernetes.io/canary-by-cookie: "canary"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: myapp.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: myapp-canary
+                port:
+                  number: 80
+
+---
+# Stable deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-stable
+  namespace: production
+  labels:
+    version: stable
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: myapp
+      version: stable
+  template:
+    metadata:
+      labels:
+        app: myapp
+        version: stable
+    spec:
+      containers:
+        - name: myapp
+          image: myapp:v1.0.0
+          ports:
+            - containerPort: 80
+          env:
+            - name: APP_VERSION
+              value: "v1.0.0"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-stable
+  namespace: production
+spec:
+  selector:
+    app: myapp
+    version: stable
+  ports:
+    - port: 80
+      targetPort: 80
+
+---
+# Canary deployment (v2 - new version being tested)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-canary
+  namespace: production
+  labels:
+    version: canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myapp
+      version: canary
+  template:
+    metadata:
+      labels:
+        app: myapp
+        version: canary
+    spec:
+      containers:
+        - name: myapp
+          image: myapp:v2.0.0-rc1
+          ports:
+            - containerPort: 80
+          env:
+            - name: APP_VERSION
+              value: "v2.0.0-rc1"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-canary
+  namespace: production
+spec:
+  selector:
+    app: myapp
+    version: canary
+  ports:
+    - port: 80
+      targetPort: 80

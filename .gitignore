@@ -1,0 +1,23 @@
+# Binary
+ing-switch
+ing-switch.exe
+
+# Go build artifacts
+*.test
+*.out
+
+# Node
+web/node_modules/
+web/.vite/
+
+# Generated migration output (tool output, not source)
+migration/
+migration-*/
+
+# Claude Code local config
+.claude/
+
+# OS
+.DS_Store
+*.swp
+*.swo

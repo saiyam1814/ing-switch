@@ -1,0 +1,109 @@
+# Example 09: WebSocket with Long-Lived Connections
+# Demonstrates: websocket-services, proxy-read-timeout (high), proxy-send-timeout, proxy-connect-timeout
+# Migration complexity: SIMPLE (WebSocket is natively supported in Traefik and Gateway API)
+# Target:
+#   Traefik: Natively supported, no special config needed
+#   Gateway API: Natively supported in HTTPRoute
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: realtime-chat
+  namespace: messaging
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # WebSocket requires long timeouts (connections stay open)
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "5"
+    nginx.ingress.kubernetes.io/websocket-services: "chat-server,notification-server"
+    # Proxy buffering must be off for streaming
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    # Connection affinity important for WebSocket
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "WSROUTE"
+    nginx.ingress.kubernetes.io/session-cookie-samesite: "Strict"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - chat.example.com
+        - notifications.example.com
+      secretName: messaging-tls
+  rules:
+    - host: chat.example.com
+      http:
+        paths:
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: chat-server
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: chat-frontend
+                port:
+                  number: 80
+    - host: notifications.example.com
+      http:
+        paths:
+          - path: /events
+            pathType: Prefix
+            backend:
+              service:
+                name: notification-server
+                port:
+                  number: 8080
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-server
+  namespace: messaging
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: chat-server
+  template:
+    metadata:
+      labels:
+        app: chat-server
+    spec:
+      containers:
+        - name: chat
+          image: node:20-alpine
+          ports:
+            - containerPort: 8080
+          command:
+            - node
+            - -e
+            - |
+              const http = require('http');
+              const { WebSocketServer } = require('ws');
+              const server = http.createServer();
+              const wss = new WebSocketServer({ server });
+              wss.on('connection', ws => {
+                ws.on('message', msg => ws.send(`echo: ${msg}`));
+              });
+              server.listen(8080);
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-server
+  namespace: messaging
+spec:
+  selector:
+    app: chat-server
+  ports:
+    - port: 8080
+      targetPort: 8080

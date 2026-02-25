@@ -1,0 +1,162 @@
+package generator
+
+import (
+	"archive/zip"
+	"bytes"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/saiyam1814/ing-switch/pkg/analyzer"
+)
+
+// OutputGenerator writes generated files to disk.
+type OutputGenerator struct {
+	outputDir string
+}
+
+// NewOutputGenerator creates an OutputGenerator for the given directory.
+func NewOutputGenerator(outputDir string) *OutputGenerator {
+	return &OutputGenerator{outputDir: outputDir}
+}
+
+// Write creates the output directory structure and writes all files.
+func (g *OutputGenerator) Write(files []GeneratedFile, report *analyzer.AnalysisReport) error {
+	if err := os.MkdirAll(g.outputDir, 0755); err != nil {
+		return fmt.Errorf("creating output directory: %w", err)
+	}
+
+	// Write migration report first
+	reportContent := generateMigrationReport(files, report)
+	if err := g.writeFile("00-migration-report.md", reportContent); err != nil {
+		return err
+	}
+
+	// Write all generated files
+	for _, f := range files {
+		if err := g.writeFile(f.RelPath, f.Content); err != nil {
+			return fmt.Errorf("writing %s: %w", f.RelPath, err)
+		}
+	}
+
+	// Make shell scripts executable
+	for _, f := range files {
+		if strings.HasSuffix(f.RelPath, ".sh") {
+			fullPath := filepath.Join(g.outputDir, f.RelPath)
+			_ = os.Chmod(fullPath, 0755)
+		}
+	}
+
+	return nil
+}
+
+// CreateZip creates an in-memory ZIP of all generated files.
+func CreateZip(files []GeneratedFile, report *analyzer.AnalysisReport) ([]byte, error) {
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+
+	// Add migration report
+	reportContent := generateMigrationReport(files, report)
+	if err := addToZip(w, "00-migration-report.md", reportContent); err != nil {
+		return nil, err
+	}
+
+	for _, f := range files {
+		if err := addToZip(w, f.RelPath, f.Content); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := w.Close(); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (g *OutputGenerator) writeFile(relPath, content string) error {
+	fullPath := filepath.Join(g.outputDir, relPath)
+	dir := filepath.Dir(fullPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("creating directory %s: %w", dir, err)
+	}
+	if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("writing file %s: %w", fullPath, err)
+	}
+	fmt.Printf("  + %s\n", relPath)
+	return nil
+}
+
+func addToZip(w *zip.Writer, name, content string) error {
+	f, err := w.Create(name)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write([]byte(content))
+	return err
+}
+
+// GenerateMigrationReport produces the markdown migration report content.
+// It is exported so the API layer can include it in the response files list.
+func GenerateMigrationReport(files []GeneratedFile, report *analyzer.AnalysisReport) string {
+	return generateMigrationReport(files, report)
+}
+
+func generateMigrationReport(files []GeneratedFile, report *analyzer.AnalysisReport) string {
+	var sb strings.Builder
+
+	sb.WriteString("# ing-switch Migration Report\n\n")
+	sb.WriteString(fmt.Sprintf("**Target Controller:** %s\n\n", report.Target))
+
+	sb.WriteString("## Summary\n\n")
+	sb.WriteString(fmt.Sprintf("| Metric | Count |\n|--------|-------|\n"))
+	sb.WriteString(fmt.Sprintf("| Total Ingresses | %d |\n", report.Summary.Total))
+	sb.WriteString(fmt.Sprintf("| Fully Compatible | %d |\n", report.Summary.FullyCompatible))
+	sb.WriteString(fmt.Sprintf("| Needs Workarounds | %d |\n", report.Summary.NeedsWorkaround))
+	sb.WriteString(fmt.Sprintf("| Has Unsupported Annotations | %d |\n\n", report.Summary.HasUnsupported))
+
+	sb.WriteString("## Ingress Analysis\n\n")
+	for _, ir := range report.IngressReports {
+		status := map[string]string{
+			"ready":      "✅ Ready to migrate",
+			"workaround": "⚠️  Needs workaround",
+			"breaking":   "❌ Has unsupported annotations",
+		}[ir.OverallStatus]
+
+		sb.WriteString(fmt.Sprintf("### %s/%s\n\n**Status:** %s\n\n", ir.Namespace, ir.Name, status))
+
+		if len(ir.Mappings) > 0 {
+			sb.WriteString("| Annotation | Status | Target Resource | Notes |\n")
+			sb.WriteString("|-----------|--------|-----------------|-------|\n")
+			for _, m := range ir.Mappings {
+				statusIcon := map[analyzer.MappingStatus]string{
+					analyzer.StatusSupported:   "✅",
+					analyzer.StatusPartial:     "⚠️",
+					analyzer.StatusUnsupported: "❌",
+				}[m.Status]
+				sb.WriteString(fmt.Sprintf("| `%s` | %s | %s | %s |\n",
+					m.OriginalKey, statusIcon, m.TargetResource, m.Note))
+			}
+			sb.WriteString("\n")
+		}
+	}
+
+	sb.WriteString("## Generated Files\n\n")
+	categories := map[string][]GeneratedFile{}
+	for _, f := range files {
+		categories[f.Category] = append(categories[f.Category], f)
+	}
+	for cat, catFiles := range categories {
+		sb.WriteString(fmt.Sprintf("### %s\n\n", cat))
+		for _, f := range catFiles {
+			sb.WriteString(fmt.Sprintf("- `%s` — %s\n", f.RelPath, f.Description))
+		}
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("---\n")
+	sb.WriteString("*Generated by ing-switch — https://github.com/saiyam1814/ing-switch*\n")
+
+	return sb.String()
+}

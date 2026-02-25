@@ -1,0 +1,126 @@
+# Example 10: gRPC Backend
+# Demonstrates: backend-protocol: GRPC, grpc-backend, TLS passthrough for gRPC
+# Migration complexity: COMPLEX (requires dedicated GRPCRoute in Gateway API)
+# Target:
+#   Traefik: ServersTransport with h2c (HTTP/2 Cleartext) or GRPCS
+#   Gateway API: GRPCRoute resource (dedicated first-class support)
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grpc-service
+  namespace: platform
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Tell NGINX the backend speaks gRPC
+    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+    nginx.ingress.kubernetes.io/grpc-backend: "true"
+    # gRPC requires HTTP/2
+    nginx.ingress.kubernetes.io/proxy-http-version: "2.0"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "5"
+    # No buffering for streaming RPCs
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - grpc.platform.example.com
+      secretName: grpc-tls
+  rules:
+    - host: grpc.platform.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grpc-backend
+                port:
+                  number: 50051
+
+---
+# Secure gRPC with mTLS to backend
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grpc-service-secure
+  namespace: platform
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "GRPCS"
+    nginx.ingress.kubernetes.io/proxy-ssl-secret: "platform/grpc-backend-tls"
+    nginx.ingress.kubernetes.io/proxy-ssl-verify: "on"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - secure-grpc.platform.example.com
+      secretName: grpc-tls
+  rules:
+    - host: secure-grpc.platform.example.com
+      http:
+        paths:
+          - path: /com.example.UserService
+            pathType: Prefix
+            backend:
+              service:
+                name: user-grpc-service
+                port:
+                  number: 50051
+          - path: /com.example.OrderService
+            pathType: Prefix
+            backend:
+              service:
+                name: order-grpc-service
+                port:
+                  number: 50051
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grpc-backend
+  namespace: platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: grpc-backend
+  template:
+    metadata:
+      labels:
+        app: grpc-backend
+    spec:
+      containers:
+        - name: grpc
+          image: grpc/java-example-hostname:latest
+          ports:
+            - containerPort: 50051
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grpc-backend
+  namespace: platform
+  annotations:
+    # Tell the cloud LB this is gRPC
+    cloud.google.com/app-protocols: '{"grpc":"HTTP2"}'
+spec:
+  selector:
+    app: grpc-backend
+  ports:
+    - port: 50051
+      targetPort: 50051
+      name: grpc

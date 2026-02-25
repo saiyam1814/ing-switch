@@ -1,0 +1,165 @@
+# Example 03: External Authentication via OAuth2 Proxy
+# Demonstrates: auth-url, auth-response-headers, auth-request-redirect, auth-method
+# Migration complexity: COMPLEX
+# Target:
+#   Traefik: ForwardAuth middleware (different behavior — full request forwarded, not subrequest)
+#   Gateway API: SecurityPolicy with ExtensionRef (Envoy Gateway ext-auth)
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: protected-app
+  namespace: production
+  annotations:
+    nginx.ingress.kubernetes.io/auth-url: "https://oauth2.example.com/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://oauth2.example.com/oauth2/start?rd=$escaped_request_uri"
+    nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-User,X-Auth-Request-Email,X-Auth-Request-Groups,Authorization"
+    nginx.ingress.kubernetes.io/auth-method: "GET"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - dashboard.example.com
+      secretName: dashboard-tls
+  rules:
+    - host: dashboard.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dashboard
+                port:
+                  number: 3000
+
+---
+# OAuth2 Proxy deployment (the auth-url target)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+  namespace: production
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app: oauth2-proxy
+    spec:
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+          args:
+            - --provider=github
+            - --upstream=file:///dev/null
+            - --http-address=0.0.0.0:4180
+            - --cookie-secure=true
+            - --cookie-domain=.example.com
+            - --whitelist-domain=.example.com
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy-secret
+                  key: client-id
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy-secret
+                  key: client-secret
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy-secret
+                  key: cookie-secret
+          ports:
+            - containerPort: 4180
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy
+  namespace: production
+spec:
+  selector:
+    app: oauth2-proxy
+  ports:
+    - port: 4180
+      targetPort: 4180
+
+---
+# The OAuth2 Proxy Ingress (handles /oauth2/* paths)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oauth2-proxy
+  namespace: production
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - oauth2.example.com
+      secretName: oauth2-tls
+  rules:
+    - host: oauth2.example.com
+      http:
+        paths:
+          - path: /oauth2
+            pathType: Prefix
+            backend:
+              service:
+                name: oauth2-proxy
+                port:
+                  number: 4180
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard
+  namespace: production
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dashboard
+  template:
+    metadata:
+      labels:
+        app: dashboard
+    spec:
+      containers:
+        - name: dashboard
+          image: grafana/grafana:10.0.0
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_AUTH_PROXY_ENABLED
+              value: "true"
+            - name: GF_AUTH_PROXY_HEADER_NAME
+              value: "X-Auth-Request-User"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard
+  namespace: production
+spec:
+  selector:
+    app: dashboard
+  ports:
+    - port: 3000
+      targetPort: 3000

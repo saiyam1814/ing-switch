@@ -1,0 +1,131 @@
+# Example 01: Basic Path-Based Routing + TLS
+# Demonstrates: ssl-redirect, custom-headers, basic TLS termination
+# Migration complexity: SIMPLE
+# Target: Works with Traefik (1:1 annotation translation) and Gateway API (RequestRedirect filter)
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-app
+  namespace: production
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/custom-headers: "production/web-app-headers"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - app.example.com
+      secretName: app-tls-secret
+  rules:
+    - host: app.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web-frontend
+                port:
+                  number: 80
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: web-api
+                port:
+                  number: 8080
+          - path: /static
+            pathType: Prefix
+            backend:
+              service:
+                name: web-static
+                port:
+                  number: 80
+
+---
+# ConfigMap with custom response headers
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-app-headers
+  namespace: production
+data:
+  X-Frame-Options: "SAMEORIGIN"
+  X-Content-Type-Options: "nosniff"
+  X-XSS-Protection: "1; mode=block"
+  Referrer-Policy: "strict-origin-when-cross-origin"
+  Permissions-Policy: "camera=(), microphone=(), geolocation=()"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-frontend
+  namespace: production
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web-frontend
+  template:
+    metadata:
+      labels:
+        app: web-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: nginx:1.25
+          ports:
+            - containerPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-frontend
+  namespace: production
+spec:
+  selector:
+    app: web-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-api
+  namespace: production
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web-api
+  template:
+    metadata:
+      labels:
+        app: web-api
+    spec:
+      containers:
+        - name: api
+          image: nginx:1.25
+          ports:
+            - containerPort: 8080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-api
+  namespace: production
+spec:
+  selector:
+    app: web-api
+  ports:
+    - port: 8080
+      targetPort: 8080

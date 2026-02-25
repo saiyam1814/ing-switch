@@ -1,0 +1,231 @@
+# Example 11: Full-Featured "Kitchen Sink" Ingress
+# Demonstrates: Nearly all major annotation categories combined
+#   force-ssl-redirect, auth-url, limit-rps, whitelist-source-range,
+#   affinity/sticky-cookies, enable-cors, rewrite-target, custom-headers,
+#   canary setup, proxy timeouts
+# Migration complexity: UNSUPPORTED (contains configuration-snippet)
+# This is the HARDEST real-world migration case — requires careful review
+#
+# Target:
+#   Traefik: Multiple Middleware CRDs, some annotations need manual work
+#   Gateway API: Multiple policies + HTTPRoute filters, ext-auth needed
+
+---
+# Main application Ingress (full annotations)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: enterprise-app
+  namespace: enterprise
+  annotations:
+    # TLS
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+
+    # External authentication (OAuth2 proxy)
+    nginx.ingress.kubernetes.io/auth-url: "https://auth.enterprise.com/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://auth.enterprise.com/oauth2/start?rd=$escaped_request_uri"
+    nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-User,X-Auth-Email,X-Auth-Groups,Authorization"
+
+    # Rate limiting
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+    nginx.ingress.kubernetes.io/limit-connections: "200"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "3"
+    nginx.ingress.kubernetes.io/limit-whitelist: "10.0.0.0/8"
+
+    # IP access control
+    nginx.ingress.kubernetes.io/whitelist-source-range: "203.0.113.0/24,10.0.0.0/8,172.16.0.0/12"
+
+    # Session affinity
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "ESESSID"
+    nginx.ingress.kubernetes.io/session-cookie-samesite: "None"
+    nginx.ingress.kubernetes.io/session-cookie-secure: "true"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "86400"
+
+    # CORS for cross-domain frontend
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://admin.enterprise.com,https://portal.enterprise.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization,Content-Type,X-Requested-With,X-Correlation-ID"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-max-age: "3600"
+
+    # URL rewriting
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: "/$2"
+
+    # Custom response headers
+    nginx.ingress.kubernetes.io/custom-headers: "enterprise/app-headers"
+
+    # Proxy settings
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+
+    # UNSUPPORTED: NGINX snippet — this is the breaking annotation
+    # This sets additional security and performance headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains; preload";
+      more_set_headers "X-Enterprise-Version: 2.1";
+      more_set_headers "Cache-Control: no-store, no-cache, must-revalidate";
+      add_header Vary "Accept-Encoding,Origin";
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - enterprise.com
+        - www.enterprise.com
+        - api.enterprise.com
+      secretName: enterprise-wildcard-tls
+  rules:
+    - host: enterprise.com
+      http:
+        paths:
+          - path: /app(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: app-frontend
+                port:
+                  number: 80
+    - host: api.enterprise.com
+      http:
+        paths:
+          - path: /v[12](/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: app-api
+                port:
+                  number: 8080
+
+---
+# Canary for the enterprise app (10% traffic)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: enterprise-app-canary
+  namespace: enterprise
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "10"
+    nginx.ingress.kubernetes.io/canary-by-header: "X-Beta"
+    nginx.ingress.kubernetes.io/canary-by-header-value: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: enterprise.com
+      http:
+        paths:
+          - path: /app(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: app-frontend-v2
+                port:
+                  number: 80
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-headers
+  namespace: enterprise
+data:
+  X-Frame-Options: "SAMEORIGIN"
+  X-Content-Type-Options: "nosniff"
+  Permissions-Policy: "camera=(), microphone=(), payment=(self)"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-frontend
+  namespace: enterprise
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: app-frontend
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: app-frontend
+        version: v1
+    spec:
+      containers:
+        - name: frontend
+          image: app-frontend:v1.5.2
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-frontend
+  namespace: enterprise
+spec:
+  selector:
+    app: app-frontend
+    version: v1
+  ports:
+    - port: 80
+      targetPort: 80
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-api
+  namespace: enterprise
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-api
+  template:
+    metadata:
+      labels:
+        app: app-api
+    spec:
+      containers:
+        - name: api
+          image: app-api:v1.5.2
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-api
+  namespace: enterprise
+spec:
+  selector:
+    app: app-api
+  ports:
+    - port: 8080
+      targetPort: 8080
