@@ -96,25 +96,42 @@
   <polygon points="444,155 428,146 428,164" fill="#c084fc" opacity="0.9"/>
   <polygon points="444,335 428,326 428,344" fill="#22d3ee" opacity="0.9"/>
 
-  <!-- ── CENTER SWITCH NODE: KUBERNETES WHEEL ─────────────────── -->
+  <!-- ── CENTER: REAL KUBERNETES LOGO (heptagon + helm wheel) ─── -->
   <!--
-    7 spokes, ri=7, ro=22, center=(250,245)
-    Angles: -90°, -38.57°, 12.86°, 64.29°, 115.71°, 167.14°, 218.57°
+    Design at local origin, R=28 heptagon
+    Outer ring r=18, inner ring r=10
+    7 spokes (inner→outer) + 7 handle knobs (rounded caps beyond outer)
+    Handle tips at r=22.5, spoke angles: -90° then every 51.43°
   -->
-  <!-- Dark backdrop -->
-  <circle cx="250" cy="245" r="33" fill="#04030a"/>
-  <!-- Outer ring (K8s blue) -->
-  <circle cx="250" cy="245" r="26" fill="none" stroke="#326CE5" stroke-width="2.5"/>
-  <!-- 7 spokes -->
-  <line x1="250"    y1="238"   x2="250"    y2="223"   stroke="#326CE5" stroke-width="2.5" stroke-linecap="round"/>
-  <line x1="255.5"  y1="240.6" x2="267.2"  y2="231.3" stroke="#326CE5" stroke-width="2.5" stroke-linecap="round"/>
-  <line x1="256.8"  y1="246.6" x2="271.5"  y2="249.9" stroke="#326CE5" stroke-width="2.5" stroke-linecap="round"/>
-  <line x1="253"    y1="251.3" x2="259.6"  y2="264.8" stroke="#326CE5" stroke-width="2.5" stroke-linecap="round"/>
-  <line x1="247"    y1="251.3" x2="240.4"  y2="264.8" stroke="#326CE5" stroke-width="2.5" stroke-linecap="round"/>
-  <line x1="243.2"  y1="246.6" x2="228.5"  y2="249.9" stroke="#326CE5" stroke-width="2.5" stroke-linecap="round"/>
-  <line x1="244.5"  y1="240.6" x2="232.8"  y2="231.3" stroke="#326CE5" stroke-width="2.5" stroke-linecap="round"/>
-  <!-- Hub -->
-  <circle cx="250" cy="245" r="5" fill="#326CE5"/>
+  <g transform="translate(250, 245)">
+    <!-- Dark backdrop -->
+    <circle r="33" fill="#04030a"/>
+    <!-- Heptagon (K8s blue background) -->
+    <polygon points="0,-28 21.89,-17.46 27.29,6.23 12.15,25.23 -12.15,25.23 -27.29,6.23 -21.89,-17.46"
+             fill="#326CE5"/>
+    <!-- Outer ring -->
+    <circle r="18" fill="none" stroke="white" stroke-width="3"/>
+    <!-- Inner ring -->
+    <circle r="10" fill="none" stroke="white" stroke-width="2.5"/>
+    <!-- 7 spokes: inner ring → outer ring -->
+    <line x1="0"     y1="-10"   x2="0"     y2="-18"   stroke="white" stroke-width="2.5"/>
+    <line x1="7.82"  y1="-6.24" x2="14.07" y2="-11.22" stroke="white" stroke-width="2.5"/>
+    <line x1="9.75"  y1="2.23"  x2="17.55" y2="4.01"   stroke="white" stroke-width="2.5"/>
+    <line x1="4.34"  y1="9.01"  x2="7.81"  y2="16.22"  stroke="white" stroke-width="2.5"/>
+    <line x1="-4.34" y1="9.01"  x2="-7.81" y2="16.22"  stroke="white" stroke-width="2.5"/>
+    <line x1="-9.75" y1="2.23"  x2="-17.55" y2="4.01"  stroke="white" stroke-width="2.5"/>
+    <line x1="-7.82" y1="-6.24" x2="-14.07" y2="-11.22" stroke="white" stroke-width="2.5"/>
+    <!-- 7 handle knobs: outer ring → tip (rounded caps give the knob shape) -->
+    <line x1="0"      y1="-18"    x2="0"      y2="-22.5"  stroke="white" stroke-width="5.5" stroke-linecap="round"/>
+    <line x1="14.07"  y1="-11.22" x2="17.59"  y2="-14.03" stroke="white" stroke-width="5.5" stroke-linecap="round"/>
+    <line x1="17.55"  y1="4.01"   x2="21.93"  y2="5.01"   stroke="white" stroke-width="5.5" stroke-linecap="round"/>
+    <line x1="7.81"   y1="16.22"  x2="9.76"   y2="20.27"  stroke="white" stroke-width="5.5" stroke-linecap="round"/>
+    <line x1="-7.81"  y1="16.22"  x2="-9.76"  y2="20.27"  stroke="white" stroke-width="5.5" stroke-linecap="round"/>
+    <line x1="-17.55" y1="4.01"   x2="-21.93" y2="5.01"   stroke="white" stroke-width="5.5" stroke-linecap="round"/>
+    <line x1="-14.07" y1="-11.22" x2="-17.59" y2="-14.03" stroke="white" stroke-width="5.5" stroke-linecap="round"/>
+    <!-- Center hub (blue hexagon peek-through) -->
+    <circle r="3.5" fill="#326CE5"/>
+  </g>
 
   <!-- ── TEXT ───────────────────────────────────────────────────── -->
   <!-- Tool name -->

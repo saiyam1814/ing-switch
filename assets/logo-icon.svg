@@ -73,19 +73,27 @@
   <circle cx="430" cy="145" r="22" fill="#c084fc" filter="url(#glow)"/>
   <circle cx="430" cy="145" r="10" fill="#fff"/>
 
-  <!-- Center switch node: Kubernetes wheel -->
-  <!--
-    7 spokes, ri=9, ro=26, center=(250,250)
-    Angles: -90°, -38.57°, 12.86°, 64.29°, 115.71°, 167.14°, 218.57°
-  -->
-  <circle cx="250" cy="250" r="38" fill="#04030a"/>
-  <circle cx="250" cy="250" r="30" fill="none" stroke="#326CE5" stroke-width="3"/>
-  <line x1="250"    y1="241"   x2="250"    y2="224"   stroke="#326CE5" stroke-width="3" stroke-linecap="round"/>
-  <line x1="257"    y1="244.4" x2="270.3"  y2="233.8" stroke="#326CE5" stroke-width="3" stroke-linecap="round"/>
-  <line x1="258.8"  y1="252"   x2="275.3"  y2="255.8" stroke="#326CE5" stroke-width="3" stroke-linecap="round"/>
-  <line x1="253.9"  y1="258.1" x2="261.3"  y2="273.4" stroke="#326CE5" stroke-width="3" stroke-linecap="round"/>
-  <line x1="246.1"  y1="258.1" x2="238.7"  y2="273.4" stroke="#326CE5" stroke-width="3" stroke-linecap="round"/>
-  <line x1="241.2"  y1="252"   x2="224.7"  y2="255.8" stroke="#326CE5" stroke-width="3" stroke-linecap="round"/>
-  <line x1="243"    y1="244.4" x2="229.7"  y2="233.8" stroke="#326CE5" stroke-width="3" stroke-linecap="round"/>
-  <circle cx="250" cy="250" r="6" fill="#326CE5"/>
+  <!-- Center switch node: real Kubernetes logo (scaled up 1.214×) -->
+  <g transform="translate(250, 250) scale(1.214)">
+    <circle r="33" fill="#04030a"/>
+    <polygon points="0,-28 21.89,-17.46 27.29,6.23 12.15,25.23 -12.15,25.23 -27.29,6.23 -21.89,-17.46"
+             fill="#326CE5"/>
+    <circle r="18" fill="none" stroke="white" stroke-width="3"/>
+    <circle r="10" fill="none" stroke="white" stroke-width="2.5"/>
+    <line x1="0"     y1="-10"   x2="0"     y2="-18"    stroke="white" stroke-width="2.5"/>
+    <line x1="7.82"  y1="-6.24" x2="14.07" y2="-11.22" stroke="white" stroke-width="2.5"/>
+    <line x1="9.75"  y1="2.23"  x2="17.55" y2="4.01"   stroke="white" stroke-width="2.5"/>
+    <line x1="4.34"  y1="9.01"  x2="7.81"  y2="16.22"  stroke="white" stroke-width="2.5"/>
+    <line x1="-4.34" y1="9.01"  x2="-7.81" y2="16.22"  stroke="white" stroke-width="2.5"/>
+    <line x1="-9.75" y1="2.23"  x2="-17.55" y2="4.01"  stroke="white" stroke-width="2.5"/>
+    <line x1="-7.82" y1="-6.24" x2="-14.07" y2="-11.22" stroke="white" stroke-width="2.5"/>
+    <line x1="0"      y1="-18"    x2="0"      y2="-22.5"  stroke="white" stroke-width="5.5" stroke-linecap="round"/>
+    <line x1="14.07"  y1="-11.22" x2="17.59"  y2="-14.03" stroke="white" stroke-width="5.5" stroke-linecap="round"/>
+    <line x1="17.55"  y1="4.01"   x2="21.93"  y2="5.01"   stroke="white" stroke-width="5.5" stroke-linecap="round"/>
+    <line x1="7.81"   y1="16.22"  x2="9.76"   y2="20.27"  stroke="white" stroke-width="5.5" stroke-linecap="round"/>
+    <line x1="-7.81"  y1="16.22"  x2="-9.76"  y2="20.27"  stroke="white" stroke-width="5.5" stroke-linecap="round"/>
+    <line x1="-17.55" y1="4.01"   x2="-21.93" y2="5.01"   stroke="white" stroke-width="5.5" stroke-linecap="round"/>
+    <line x1="-14.07" y1="-11.22" x2="-17.59" y2="-14.03" stroke="white" stroke-width="5.5" stroke-linecap="round"/>
+    <circle r="3.5" fill="#326CE5"/>
+  </g>
 </svg>
