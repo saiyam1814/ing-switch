@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.svg" alt="ing-switch logo" width="280"/>
+</p>
+
 # ing-switch
 
 **Migrate from Ingress NGINX to Traefik or Gateway API — in minutes, not days.**

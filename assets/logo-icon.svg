@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#06040f"/>
+    </linearGradient>
+    <linearGradient id="gradA" x1="70" y1="145" x2="430" y2="355"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+    <linearGradient id="gradB" x1="70" y1="355" x2="430" y2="145"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#c084fc"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="pathglow" x="-10%" y="-30%" width="120%" height="160%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Border ring -->
+  <rect x="12" y="12" width="476" height="476" rx="100"
+        fill="none" stroke="#3b82f6" stroke-width="1.5" opacity="0.25"/>
+  <!-- Background -->
+  <rect x="15" y="15" width="470" height="470" rx="96" fill="url(#bg)"/>
+
+  <!-- Dot grid -->
+  <g fill="#ffffff" opacity="0.07">
+    <circle cx="125" cy="110" r="2.5"/> <circle cx="250" cy="110" r="2.5"/> <circle cx="375" cy="110" r="2.5"/>
+    <circle cx="125" cy="250" r="2.5"/>                                      <circle cx="375" cy="250" r="2.5"/>
+    <circle cx="125" cy="390" r="2.5"/> <circle cx="250" cy="390" r="2.5"/> <circle cx="375" cy="390" r="2.5"/>
+  </g>
+
+  <!-- Path A: ambient glow -->
+  <path d="M 70,145 C 190,145 310,355 430,355"
+        stroke="url(#gradA)" stroke-width="46" fill="none"
+        stroke-linecap="round" opacity="0.12" filter="url(#pathglow)"/>
+  <!-- Path A: main (under at crossing) -->
+  <path d="M 70,145 C 190,145 310,355 430,355"
+        stroke="url(#gradA)" stroke-width="24" fill="none"
+        stroke-linecap="round"/>
+
+  <!-- Path B: ambient glow -->
+  <path d="M 70,355 C 190,355 310,145 430,145"
+        stroke="url(#gradB)" stroke-width="46" fill="none"
+        stroke-linecap="round" opacity="0.12" filter="url(#pathglow)"/>
+  <!-- Path B: main (over at crossing) -->
+  <path d="M 70,355 C 190,355 310,145 430,145"
+        stroke="url(#gradB)" stroke-width="24" fill="none"
+        stroke-linecap="round"/>
+
+  <!-- Source nodes: left side -->
+  <circle cx="70" cy="145" r="22" fill="#fb923c" filter="url(#glow)"/>
+  <circle cx="70" cy="145" r="10" fill="#fff"/>
+  <circle cx="70" cy="355" r="22" fill="#60a5fa" filter="url(#glow)"/>
+  <circle cx="70" cy="355" r="10" fill="#fff"/>
+
+  <!-- Destination nodes: right side -->
+  <circle cx="430" cy="355" r="22" fill="#22d3ee" filter="url(#glow)"/>
+  <circle cx="430" cy="355" r="10" fill="#fff"/>
+  <circle cx="430" cy="145" r="22" fill="#c084fc" filter="url(#glow)"/>
+  <circle cx="430" cy="145" r="10" fill="#fff"/>
+
+  <!-- Center switch node -->
+  <circle cx="250" cy="250" r="36" fill="#06040f"/>
+  <circle cx="250" cy="250" r="33" fill="none"
+          stroke="#ffffff" stroke-width="2.5" opacity="0.85"
+          filter="url(#glow)"/>
+  <circle cx="250" cy="250" r="12" fill="#ffffff" opacity="0.9"/>
+</svg>

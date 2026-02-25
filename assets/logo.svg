@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 570" width="500" height="570">
+  <defs>
+    <!-- Background gradient -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#06040f"/>
+    </linearGradient>
+
+    <!-- Path A: orange (NGINX) → cyan (Traefik) -->
+    <linearGradient id="gradA" x1="80" y1="155" x2="420" y2="335"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+
+    <!-- Path B: blue (NGINX) → purple (Gateway API) -->
+    <linearGradient id="gradB" x1="80" y1="335" x2="420" y2="155"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#c084fc"/>
+    </linearGradient>
+
+    <!-- Soft glow for nodes -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Wide ambient glow for paths -->
+    <filter id="pathglow" x="-10%" y="-30%" width="120%" height="160%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- ── BACKGROUND ───────────────────────────────────────────── -->
+  <!-- Outer subtle border ring -->
+  <rect x="25" y="15" width="450" height="450" rx="93"
+        fill="none" stroke="#3b82f6" stroke-width="1" opacity="0.2"/>
+  <!-- Main background -->
+  <rect x="30" y="20" width="440" height="440" rx="88" fill="url(#bg)"/>
+
+  <!-- Dot grid -->
+  <g fill="#ffffff" opacity="0.07">
+    <circle cx="130" cy="105" r="2.5"/> <circle cx="250" cy="105" r="2.5"/> <circle cx="370" cy="105" r="2.5"/>
+    <circle cx="130" cy="245" r="2.5"/>                                      <circle cx="370" cy="245" r="2.5"/>
+    <circle cx="130" cy="385" r="2.5"/> <circle cx="250" cy="385" r="2.5"/> <circle cx="370" cy="385" r="2.5"/>
+  </g>
+
+  <!-- ── PATHS ─────────────────────────────────────────────────── -->
+  <!--
+    Path A:  top-left  (80,155)  →  bottom-right (420,335)  orange→cyan
+    Path B:  bot-left  (80,335)  →  top-right    (420,155)  blue→purple
+    Both beziers cross at t=0.5 → (250, 245)
+  -->
+
+  <!-- Path A: ambient glow -->
+  <path d="M 80,155 C 200,155 300,335 420,335"
+        stroke="url(#gradA)" stroke-width="44" fill="none"
+        stroke-linecap="round" opacity="0.12" filter="url(#pathglow)"/>
+  <!-- Path A: main stroke (drawn first → below Path B at crossing) -->
+  <path d="M 80,155 C 200,155 300,335 420,335"
+        stroke="url(#gradA)" stroke-width="22" fill="none"
+        stroke-linecap="round"/>
+
+  <!-- Path B: ambient glow -->
+  <path d="M 80,335 C 200,335 300,155 420,155"
+        stroke="url(#gradB)" stroke-width="44" fill="none"
+        stroke-linecap="round" opacity="0.12" filter="url(#pathglow)"/>
+  <!-- Path B: main stroke (drawn second → crosses over Path A) -->
+  <path d="M 80,335 C 200,335 300,155 420,155"
+        stroke="url(#gradB)" stroke-width="22" fill="none"
+        stroke-linecap="round"/>
+
+  <!-- ── ENDPOINT NODES ─────────────────────────────────────────── -->
+  <!-- Left: orange source -->
+  <circle cx="80" cy="155" r="20" fill="#fb923c" filter="url(#glow)"/>
+  <circle cx="80" cy="155" r="9"  fill="#fff"/>
+  <!-- Left: blue source -->
+  <circle cx="80" cy="335" r="20" fill="#60a5fa" filter="url(#glow)"/>
+  <circle cx="80" cy="335" r="9"  fill="#fff"/>
+  <!-- Right: cyan destination (Traefik) -->
+  <circle cx="420" cy="335" r="20" fill="#22d3ee" filter="url(#glow)"/>
+  <circle cx="420" cy="335" r="9"  fill="#fff"/>
+  <!-- Right: purple destination (Gateway API) -->
+  <circle cx="420" cy="155" r="20" fill="#c084fc" filter="url(#glow)"/>
+  <circle cx="420" cy="155" r="9"  fill="#fff"/>
+
+  <!-- Small right-pointing arrows on destination nodes -->
+  <polygon points="444,155 428,146 428,164" fill="#c084fc" opacity="0.9"/>
+  <polygon points="444,335 428,326 428,344" fill="#22d3ee" opacity="0.9"/>
+
+  <!-- ── CENTER SWITCH NODE ─────────────────────────────────────── -->
+  <!-- Dark backdrop to visually separate the crossing paths -->
+  <circle cx="250" cy="245" r="33" fill="#06040f"/>
+  <!-- Outer ring with glow -->
+  <circle cx="250" cy="245" r="30" fill="none"
+          stroke="#ffffff" stroke-width="2.5" opacity="0.85"
+          filter="url(#glow)"/>
+  <!-- Inner fill dot -->
+  <circle cx="250" cy="245" r="11" fill="#ffffff" opacity="0.9"/>
+
+  <!-- ── TEXT ───────────────────────────────────────────────────── -->
+  <!-- Tool name -->
+  <text x="250" y="512"
+        text-anchor="middle"
+        font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace"
+        font-size="54"
+        font-weight="700"
+        fill="#f1f5f9"
+        letter-spacing="1">ing-switch</text>
+
+  <!-- Tagline -->
+  <text x="250" y="550"
+        text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif"
+        font-size="17"
+        fill="#475569"
+        letter-spacing="0.5">Kubernetes Ingress Migration</text>
+</svg>
