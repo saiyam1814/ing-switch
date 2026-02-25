@@ -73,10 +73,19 @@
   <circle cx="430" cy="145" r="22" fill="#c084fc" filter="url(#glow)"/>
   <circle cx="430" cy="145" r="10" fill="#fff"/>
 
-  <!-- Center switch node -->
-  <circle cx="250" cy="250" r="36" fill="#06040f"/>
-  <circle cx="250" cy="250" r="33" fill="none"
-          stroke="#ffffff" stroke-width="2.5" opacity="0.85"
-          filter="url(#glow)"/>
-  <circle cx="250" cy="250" r="12" fill="#ffffff" opacity="0.9"/>
+  <!-- Center switch node: Kubernetes wheel -->
+  <!--
+    7 spokes, ri=9, ro=26, center=(250,250)
+    Angles: -90°, -38.57°, 12.86°, 64.29°, 115.71°, 167.14°, 218.57°
+  -->
+  <circle cx="250" cy="250" r="38" fill="#04030a"/>
+  <circle cx="250" cy="250" r="30" fill="none" stroke="#326CE5" stroke-width="3"/>
+  <line x1="250"    y1="241"   x2="250"    y2="224"   stroke="#326CE5" stroke-width="3" stroke-linecap="round"/>
+  <line x1="257"    y1="244.4" x2="270.3"  y2="233.8" stroke="#326CE5" stroke-width="3" stroke-linecap="round"/>
+  <line x1="258.8"  y1="252"   x2="275.3"  y2="255.8" stroke="#326CE5" stroke-width="3" stroke-linecap="round"/>
+  <line x1="253.9"  y1="258.1" x2="261.3"  y2="273.4" stroke="#326CE5" stroke-width="3" stroke-linecap="round"/>
+  <line x1="246.1"  y1="258.1" x2="238.7"  y2="273.4" stroke="#326CE5" stroke-width="3" stroke-linecap="round"/>
+  <line x1="241.2"  y1="252"   x2="224.7"  y2="255.8" stroke="#326CE5" stroke-width="3" stroke-linecap="round"/>
+  <line x1="243"    y1="244.4" x2="229.7"  y2="233.8" stroke="#326CE5" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="250" cy="250" r="6" fill="#326CE5"/>
 </svg>

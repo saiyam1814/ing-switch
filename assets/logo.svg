@@ -96,15 +96,25 @@
   <polygon points="444,155 428,146 428,164" fill="#c084fc" opacity="0.9"/>
   <polygon points="444,335 428,326 428,344" fill="#22d3ee" opacity="0.9"/>
 
-  <!-- ── CENTER SWITCH NODE ─────────────────────────────────────── -->
-  <!-- Dark backdrop to visually separate the crossing paths -->
-  <circle cx="250" cy="245" r="33" fill="#06040f"/>
-  <!-- Outer ring with glow -->
-  <circle cx="250" cy="245" r="30" fill="none"
-          stroke="#ffffff" stroke-width="2.5" opacity="0.85"
-          filter="url(#glow)"/>
-  <!-- Inner fill dot -->
-  <circle cx="250" cy="245" r="11" fill="#ffffff" opacity="0.9"/>
+  <!-- ── CENTER SWITCH NODE: KUBERNETES WHEEL ─────────────────── -->
+  <!--
+    7 spokes, ri=7, ro=22, center=(250,245)
+    Angles: -90°, -38.57°, 12.86°, 64.29°, 115.71°, 167.14°, 218.57°
+  -->
+  <!-- Dark backdrop -->
+  <circle cx="250" cy="245" r="33" fill="#04030a"/>
+  <!-- Outer ring (K8s blue) -->
+  <circle cx="250" cy="245" r="26" fill="none" stroke="#326CE5" stroke-width="2.5"/>
+  <!-- 7 spokes -->
+  <line x1="250"    y1="238"   x2="250"    y2="223"   stroke="#326CE5" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="255.5"  y1="240.6" x2="267.2"  y2="231.3" stroke="#326CE5" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="256.8"  y1="246.6" x2="271.5"  y2="249.9" stroke="#326CE5" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="253"    y1="251.3" x2="259.6"  y2="264.8" stroke="#326CE5" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="247"    y1="251.3" x2="240.4"  y2="264.8" stroke="#326CE5" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="243.2"  y1="246.6" x2="228.5"  y2="249.9" stroke="#326CE5" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="244.5"  y1="240.6" x2="232.8"  y2="231.3" stroke="#326CE5" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Hub -->
+  <circle cx="250" cy="245" r="5" fill="#326CE5"/>
 
   <!-- ── TEXT ───────────────────────────────────────────────────── -->
   <!-- Tool name -->
