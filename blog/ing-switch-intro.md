@@ -1,3 +1,5 @@
+![ing-switch cover](../assets/cover.png)
+
 # ing-switch: Migrate from Ingress NGINX to Traefik or Gateway API — in Minutes, Not Days
 
 If you run Kubernetes, there's a deadline you can't ignore: **Ingress NGINX is being deprecated in March 2026**. Roughly half of all Kubernetes clusters depend on it. That's a lot of teams who need a migration plan — and most of them are going to discover that it's harder than it looks.
