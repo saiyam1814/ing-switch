@@ -1,0 +1,19 @@
+# ing-switch configuration file
+# Copy this to .ing-switch.yaml in the directory where you run ing-switch.
+#
+# Annotations matching any of these prefixes are silently skipped during
+# scanning. Useful for operator/CD-tool annotations that aren't relevant
+# to ingress migration.
+#
+# The following prefixes are always ignored (built-in, no config needed):
+#   kubectl.kubernetes.io/     — kubectl last-applied-configuration
+#   argocd.argoproj.io/        — ArgoCD tracking metadata
+#   deployment.kubernetes.io/  — Deployment controller bookkeeping
+#   meta.helm.sh/              — Helm release metadata
+#   helm.sh/                   — Helm chart annotations
+#   kopf.dev/                  — Kopf operator framework
+
+ignore_annotation_prefixes:
+  # - my-company.io/internal-
+  # - fluxcd.io/
+  # - kustomize.toolkit.fluxcd.io/

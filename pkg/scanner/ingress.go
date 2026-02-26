@@ -125,8 +125,12 @@ func parseIngress(ing networkingv1.Ingress) IngressInfo {
 		info.Services = append(info.Services, svc)
 	}
 
-	// Extract nginx annotations
+	// Extract nginx annotations, skipping system-generated / user-ignored ones
+	cfg := loadConfig()
 	for k, v := range ing.Annotations {
+		if shouldIgnoreAnnotation(k, cfg.IgnoreAnnotationPrefixes) {
+			continue
+		}
 		if strings.HasPrefix(k, nginxAnnotationPrefix) {
 			shortKey := strings.TrimPrefix(k, nginxAnnotationPrefix)
 			info.NginxAnnotations[shortKey] = v

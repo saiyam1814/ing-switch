@@ -23,6 +23,17 @@ func NewOutputGenerator(outputDir string) *OutputGenerator {
 
 // Write creates the output directory structure and writes all files.
 func (g *OutputGenerator) Write(files []GeneratedFile, report *analyzer.AnalysisReport) error {
+	// Warn if the output directory already exists and contains files — the
+	// generator does not overwrite, so stale files from a previous run would
+	// be mixed in with the new output.
+	if entries, err := os.ReadDir(g.outputDir); err == nil && len(entries) > 0 {
+		return fmt.Errorf(
+			"output directory %q already exists and is not empty.\n"+
+				"Delete it (rm -rf %s) or choose a different --output-dir before regenerating.",
+			g.outputDir, g.outputDir,
+		)
+	}
+
 	if err := os.MkdirAll(g.outputDir, 0755); err != nil {
 		return fmt.Errorf("creating output directory: %w", err)
 	}

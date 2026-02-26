@@ -104,6 +104,17 @@ set -e
 
 GATEWAY_API_VERSION="v1.2.0"
 
+# Check if Gateway API CRDs are already installed
+if kubectl get crd httproutes.gateway.networking.k8s.io &>/dev/null 2>&1 && \
+   kubectl get crd gateways.gateway.networking.k8s.io &>/dev/null 2>&1 && \
+   kubectl get crd gatewayclasses.gateway.networking.k8s.io &>/dev/null 2>&1; then
+  INSTALLED_VERSION=$(kubectl get crd httproutes.gateway.networking.k8s.io -o jsonpath='{.metadata.annotations.gateway\.networking\.k8s\.io/bundle-version}' 2>/dev/null || echo "unknown")
+  echo "Gateway API CRDs are already installed (version: ${INSTALLED_VERSION})."
+  echo "Skipping install. To upgrade, run:"
+  echo "  kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/standard-install.yaml"
+  exit 0
+fi
+
 echo "Installing Gateway API CRDs (version ${GATEWAY_API_VERSION})..."
 kubectl apply -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/standard-install.yaml"
 
