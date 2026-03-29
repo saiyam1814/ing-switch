@@ -10,6 +10,8 @@ Ingress NGINX was [archived on March 24, 2026](https://kubernetes.io/blog/2025/1
 
 ---
 
+![ing-switch Architecture](assets/architecture.png)
+
 ## What it does
 
 ```
@@ -25,6 +27,10 @@ ing-switch ui        # open the visual migration dashboard at :8080
 | **Analyze** | Per-ingress annotation compatibility table: ✅ supported / ⚠️ partial / ❌ unsupported |
 | **Migrate** | Complete output directory — Middlewares, HTTPRoutes, Gateway, policies, verify script, DNS guide, cleanup scripts |
 | **UI** | 4-page dashboard: Detect → Analyze → Migrate → Validate |
+
+![ing-switch Detect](assets/ui-detect.png)
+
+![ing-switch Migrate](assets/ui-migrate.png)
 
 ---
 
@@ -137,6 +143,12 @@ kubectl apply -f ./migration/03-gateway/
 kubectl apply -f ./migration/04-httproutes/
 kubectl apply -f ./migration/05-policies/
 ```
+
+---
+
+## Migration flow
+
+![Zero-Downtime Migration Flow](assets/migration-flow.png)
 
 ---
 
@@ -287,6 +299,7 @@ Full migration lifecycle: scan → analyze → generate → verify → cutover �
 ## Blog Posts & Tutorials
 
 - [ing-switch: Migrate from Ingress NGINX to Traefik or Gateway API in Minutes, Not Days](https://blog.kubesimplify.com/ing-switch-migrate-from-ingress-nginx-to-traefik-or-gateway-api-in-minutes-not-days) -- Introduction, architecture, and walkthrough
+- [The Ingress NGINX Migration Just Got Easier: 119 Annotations, 3 Targets, Impact Ratings](https://blog.kubesimplify.com/ing-switch-119-annotations-gateway-api-traefik-impact-ratings) -- Gateway API with Traefik, impact ratings, end-to-end vCluster demo
 
 ---
 
