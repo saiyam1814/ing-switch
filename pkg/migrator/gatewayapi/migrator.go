@@ -10,41 +10,56 @@ import (
 )
 
 // Migrator generates Gateway API migration files.
-type Migrator struct{}
-
-// NewMigrator creates a new Gateway API Migrator.
-func NewMigrator() *Migrator {
-	return &Migrator{}
+type Migrator struct {
+	provider Provider
 }
 
-// Migrate generates all files for Gateway API (Envoy Gateway) migration.
+// NewMigrator creates a new Gateway API Migrator using Envoy Gateway.
+func NewMigrator() *Migrator {
+	return &Migrator{provider: EnvoyProvider}
+}
+
+// NewTraefikGatewayMigrator creates a Gateway API Migrator using Traefik.
+func NewTraefikGatewayMigrator() *Migrator {
+	return &Migrator{provider: TraefikProvider}
+}
+
+// Migrate generates all files for Gateway API migration.
 func (m *Migrator) Migrate(scan *scanner.ScanResult, report *analyzer.AnalysisReport) ([]generator.GeneratedFile, error) {
 	var files []generator.GeneratedFile
+	p := m.provider
 
 	// 1. Install Gateway API CRDs
 	files = append(files, generateCRDInstall())
 
-	// 2. Install Envoy Gateway
-	files = append(files, generateEnvoyGatewayInstall())
-	files = append(files, generateEnvoyGatewayValues())
+	// 2. Install the gateway controller
+	if p.Name == "traefik" {
+		files = append(files, generateTraefikGatewayInstall())
+		files = append(files, generateTraefikGatewayValues())
+	} else {
+		files = append(files, generateEnvoyGatewayInstall())
+		files = append(files, generateEnvoyGatewayValues())
+	}
 
 	// 3. GatewayClass + Gateway
+	providerLabel := "Envoy Gateway"
+	if p.Name == "traefik" {
+		providerLabel = "Traefik"
+	}
 	files = append(files, generator.GeneratedFile{
 		RelPath:     "03-gateway/gatewayclass.yaml",
-		Content:     generateGatewayClass(),
-		Description: "GatewayClass using Envoy Gateway controller",
+		Content:     generateGatewayClass(p),
+		Description: fmt.Sprintf("GatewayClass using %s controller", providerLabel),
 		Category:    "gateway",
 	})
 	files = append(files, generator.GeneratedFile{
 		RelPath:     "03-gateway/gateway.yaml",
-		Content:     generateGateway(scan),
+		Content:     generateGateway(scan, p),
 		Description: "Gateway with HTTP and HTTPS listeners",
 		Category:    "gateway",
 	})
 
 	// 4. HTTPRoutes — one per Ingress
-	// Build hostname→sectionName map to enable sectionName-based listener binding
-	// for ssl-redirect routes (redirect on HTTP listener, backend on HTTPS listener).
 	hostnameToSection := buildHostnameToSection(scan)
 	for _, ing := range scan.Ingresses {
 		httpRouteYAML := generateHTTPRoute(ing, defaultGatewayName, defaultGatewayNamespace, hostnameToSection)
@@ -56,13 +71,17 @@ func (m *Migrator) Migrate(scan *scanner.ScanResult, report *analyzer.AnalysisRe
 		})
 	}
 
-	// 5. Extension Policies
-	policies := generatePolicies(scan)
-	for _, p := range policies {
+	// 5. Extension Policies / Middlewares
+	policies := generatePolicies(scan, p)
+	policyDesc := "Envoy Gateway policy"
+	if p.Name == "traefik" {
+		policyDesc = "Traefik Middleware"
+	}
+	for _, pol := range policies {
 		files = append(files, generator.GeneratedFile{
-			RelPath:     fmt.Sprintf("05-policies/%s.yaml", p.name),
-			Content:     p.yaml,
-			Description: fmt.Sprintf("Envoy Gateway policy: %s", p.name),
+			RelPath:     fmt.Sprintf("05-policies/%s.yaml", pol.name),
+			Content:     pol.yaml,
+			Description: fmt.Sprintf("%s: %s", policyDesc, pol.name),
 			Category:    "policy",
 		})
 	}
@@ -95,6 +114,88 @@ func buildHostnameToSection(scan *scanner.ScanResult) map[string]string {
 	return m
 }
 
+func generateTraefikGatewayInstall() generator.GeneratedFile {
+	return generator.GeneratedFile{
+		RelPath: "02-install-traefik-gateway/helm-install.sh",
+		Content: `#!/bin/bash
+# Install Traefik as Gateway API controller
+set -e
+
+echo "Adding Traefik Helm repository..."
+helm repo add traefik https://traefik.github.io/charts
+helm repo update
+
+echo "Installing Traefik with Gateway API provider..."
+helm upgrade --install traefik traefik/traefik \
+  --namespace traefik \
+  --create-namespace \
+  --values values.yaml
+
+echo "Waiting for Traefik to be ready..."
+kubectl rollout status deployment/traefik -n traefik --timeout=120s
+
+echo ""
+echo "Traefik Gateway API controller installed!"
+echo ""
+echo "Verify GatewayClass is accepted:"
+echo "  kubectl get gatewayclass traefik"
+echo ""
+echo "Next: Apply the GatewayClass and Gateway resources"
+echo "  kubectl apply -f ../03-gateway/"
+`,
+		Description: "Helm install script for Traefik as Gateway API controller",
+		Category:    "install",
+	}
+}
+
+func generateTraefikGatewayValues() generator.GeneratedFile {
+	return generator.GeneratedFile{
+		RelPath: "02-install-traefik-gateway/values.yaml",
+		Content: `# Traefik Helm values — Gateway API mode
+# Traefik v3.x has stable Gateway API support
+
+# Enable Gateway API provider
+providers:
+  kubernetesGateway:
+    enabled: true
+
+# Disable the default Kubernetes Ingress provider if desired
+# (keep enabled for parallel migration, disable after cutover)
+providers:
+  kubernetesIngress:
+    enabled: true
+  kubernetesGateway:
+    enabled: true
+
+# Gateway settings
+gateway:
+  listeners:
+    web:
+      port: 8000
+      protocol: HTTP
+    websecure:
+      port: 8443
+      protocol: HTTPS
+
+# High availability
+deployment:
+  replicas: 2
+
+# Logging
+logs:
+  general:
+    level: INFO
+  access:
+    enabled: true
+
+# Rancher / k3s users: Traefik is the default — these values
+# work alongside any existing Traefik installation
+`,
+		Description: "Traefik Helm values for Gateway API mode",
+		Category:    "install",
+	}
+}
+
 func generateCRDInstall() generator.GeneratedFile {
 	return generator.GeneratedFile{
 		RelPath: "01-install-gateway-api-crds/install.sh",
@@ -102,7 +203,7 @@ func generateCRDInstall() generator.GeneratedFile {
 # Install Kubernetes Gateway API CRDs (Standard channel)
 set -e
 
-GATEWAY_API_VERSION="v1.2.0"
+GATEWAY_API_VERSION="v1.5.0"
 
 # Check if Gateway API CRDs are already installed
 if kubectl get crd httproutes.gateway.networking.k8s.io &>/dev/null 2>&1 && \
@@ -147,7 +248,7 @@ echo "Installing Envoy Gateway..."
 helm upgrade --install eg eg/gateway-helm \
   --namespace envoy-gateway-system \
   --create-namespace \
-  --version v1.2.0 \
+  --version v1.7.1 \
   --values values.yaml
 
 echo "Waiting for Envoy Gateway to be ready..."

@@ -435,7 +435,7 @@ func GetAnnotationGuide(target, annotationKey string) AnnotationGuide {
 	switch target {
 	case "traefik":
 		guides = traefikGuides
-	case "gateway-api":
+	case "gateway-api", "gateway-api-traefik":
 		guides = gatewayAPIGuides
 	default:
 		return AnnotationGuide{}

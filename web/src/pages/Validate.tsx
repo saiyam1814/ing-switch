@@ -103,13 +103,13 @@ export default function Validate({ scanResult }: Props) {
         <div className="flex gap-4 items-end flex-wrap">
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1.5">Target Controller</label>
-            <div className="flex gap-2">
-              {(['traefik', 'gateway-api'] as Target[]).map(t => (
+            <div className="flex gap-2 flex-wrap">
+              {(['traefik', 'gateway-api', 'gateway-api-traefik'] as Target[]).map(t => (
                 <button key={t} onClick={() => setTarget(t)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
                     target === t ? 'bg-blue-500/20 text-blue-300 border-blue-500/40' : 'text-slate-400 border-slate-700 hover:border-slate-600 hover:text-slate-300 bg-slate-900/50'
                   }`}>
-                  {t === 'traefik' ? '🚀 Traefik v3' : '🌐 Gateway API (Envoy)'}
+                  {t === 'traefik' ? '🚀 Traefik v3' : t === 'gateway-api' ? '🌐 Gateway API (Envoy)' : '🔷 Gateway API (Traefik)'}
                 </button>
               ))}
             </div>

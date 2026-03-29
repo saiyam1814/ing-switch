@@ -153,7 +153,10 @@ func runRichValidation(kubeconfig, kubecontext, target, ns string) (*RichValidat
 			traefikCRDsInstalled, middlewareCount, ingressesWithTraefikAnnotations, ingressCount)
 	case "gateway-api":
 		appendGatewayAPIChecks(&checks, targetRunning, targetNamespace, targetVersion,
-			gatewayAPICRDsInstalled, httprouteCount, ingressCount)
+			gatewayAPICRDsInstalled, httprouteCount, ingressCount, "Envoy Gateway")
+	case "gateway-api-traefik":
+		appendGatewayAPIChecks(&checks, targetRunning, targetNamespace, targetVersion,
+			gatewayAPICRDsInstalled, httprouteCount, ingressCount, "Traefik")
 	}
 
 	result.Checks = checks
@@ -196,7 +199,7 @@ func detectTargetController(ctx context.Context, client kubernetes.Interface, ta
 	var namespaces []string
 
 	switch target {
-	case "traefik":
+	case "traefik", "gateway-api-traefik":
 		selectors = []string{"app.kubernetes.io/name=traefik", "app=traefik"}
 		namespaces = []string{"traefik", "kube-system", "default", "ingress"}
 	case "gateway-api":
@@ -309,25 +312,29 @@ func appendTraefikChecks(checks *[]ValidationCheck, targetRunning bool, namespac
 }
 
 func appendGatewayAPIChecks(checks *[]ValidationCheck, targetRunning bool, namespace, version string,
-	crdInstalled bool, httprouteCount, ingressTotal int) {
+	crdInstalled bool, httprouteCount, ingressTotal int, providerName string) {
 
 	if targetRunning {
 		*checks = append(*checks, ValidationCheck{
-			Name:    fmt.Sprintf("Envoy Gateway running (%s)", version),
+			Name:    fmt.Sprintf("%s running (%s)", providerName, version),
 			Status:  "pass",
-			Message: fmt.Sprintf("Envoy Gateway %s is running in namespace '%s'", version, namespace),
+			Message: fmt.Sprintf("%s %s is running in namespace '%s'", providerName, version, namespace),
 		})
 	} else {
+		installHint := "helm install eg oci://docker.io/envoyproxy/gateway-helm --version v1.7.1 -n envoy-gateway-system --create-namespace"
+		if providerName == "Traefik" {
+			installHint = "helm install traefik traefik/traefik -n traefik --create-namespace (with kubernetesGateway.enabled=true)"
+		}
 		*checks = append(*checks, ValidationCheck{
-			Name:    "Envoy Gateway",
+			Name:    providerName,
 			Status:  "fail",
-			Message: "Envoy Gateway not detected. Install: helm install eg oci://docker.io/envoyproxy/gateway-helm --version v1.3.0 -n envoy-gateway-system --create-namespace",
+			Message: fmt.Sprintf("%s not detected. Install: %s", providerName, installHint),
 		})
 	}
 
 	if crdInstalled {
 		*checks = append(*checks, ValidationCheck{
-			Name:    "Gateway API CRDs installed (v1.2+)",
+			Name:    "Gateway API CRDs installed (v1.5+)",
 			Status:  "pass",
 			Message: "gateway.networking.k8s.io CRDs present — HTTPRoute, GatewayClass, Gateway, ReferenceGrant available",
 		})
@@ -335,7 +342,7 @@ func appendGatewayAPIChecks(checks *[]ValidationCheck, targetRunning bool, names
 		*checks = append(*checks, ValidationCheck{
 			Name:    "Gateway API CRDs",
 			Status:  "fail",
-			Message: "Gateway API CRDs not found. Install: kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml",
+			Message: "Gateway API CRDs not found. Install: kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.0/standard-install.yaml",
 		})
 	}
 
@@ -381,6 +388,14 @@ func buildNextSteps(target, phase string, targetRunning, traefikCRDs, gatewayAPI
 				"Install Traefik alongside NGINX (safe — won't affect production traffic)",
 			}
 		}
+		if target == "gateway-api-traefik" {
+			return []string{
+				"Generate migration files on the Migrate tab",
+				"Review 00-migration-report.md for a full migration overview",
+				"Install Gateway API CRDs (standard-install.yaml)",
+				"Install Traefik with Gateway API provider alongside NGINX (safe — won't affect production traffic)",
+			}
+		}
 		return []string{
 			"Generate migration files on the Migrate tab",
 			"Review 00-migration-report.md for a full migration overview",
@@ -400,13 +415,17 @@ func buildNextSteps(target, phase string, targetRunning, traefikCRDs, gatewayAPI
 			steps = append(steps, "Update DNS to Traefik's LoadBalancer IP once verified")
 			steps = append(steps, "After DNS propagation: run 06-cleanup/ to remove NGINX")
 		} else {
+			controllerLabel := "Envoy Gateway"
+			if target == "gateway-api-traefik" {
+				controllerLabel = "Traefik Gateway"
+			}
 			if httprouteCount == 0 {
 				steps = append(steps, "Apply GatewayClass + Gateway (03-gateway/)")
 				steps = append(steps, "Apply HTTPRoutes (04-httproutes/)")
 				steps = append(steps, "Apply Policies if any (05-policies/)")
 			}
-			steps = append(steps, "Run 06-verify.sh to test Envoy Gateway")
-			steps = append(steps, "Update DNS to Envoy Gateway's LoadBalancer IP once verified")
+			steps = append(steps, "Run 06-verify.sh to test "+controllerLabel)
+			steps = append(steps, "Update DNS to "+controllerLabel+"'s LoadBalancer IP once verified")
 			steps = append(steps, "After DNS propagation: run 07-cleanup/ to remove NGINX")
 		}
 		return steps

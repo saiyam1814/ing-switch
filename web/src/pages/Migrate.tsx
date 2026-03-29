@@ -42,6 +42,16 @@ const stepDefs: Record<Target, StepDef[]> = {
     { label: 'Verify & DNS Cutover',      desc: '06-verify.sh, then update DNS — shifts live traffic',              icon: '✅', category: 'verify',     manual: true, traffic: true, filePath: '06-verify.sh' },
     { label: 'Remove NGINX',             desc: '07-cleanup/remove-nginx.sh — only after DNS fully propagated',     icon: '🗑️', category: 'cleanup',    manual: true, danger: true, filePath: '07-cleanup/remove-nginx.sh' },
   ],
+  'gateway-api-traefik': [
+    { label: 'Review Migration Report',   desc: '00-migration-report.md — full summary of what changes',              icon: '📖', category: 'guide',      manual: true, filePath: '00-migration-report.md' },
+    { label: 'Install Gateway API CRDs',  desc: 'install.sh — registers API types (non-breaking)',                    icon: '📦', category: 'install',    manual: true, filePath: '01-install-gateway-api-crds/install.sh' },
+    { label: 'Install Traefik (Gateway)',  desc: 'helm-install.sh — installs Traefik with Gateway API provider',      icon: '🔷', category: 'install',    manual: true, filePath: '02-install-traefik-gateway/helm-install.sh' },
+    { label: 'Apply Gateway Resources',   desc: '03-gateway/ — GatewayClass (traefik) + Gateway',                    icon: '🌐', category: 'gateway' },
+    { label: 'Apply HTTPRoutes',          desc: '04-httproutes/ — converted from Ingress objects',                    icon: '🛣️', category: 'httproute' },
+    { label: 'Apply Traefik Extensions',   desc: '05-policies/ — Traefik Middleware CRDs for rate-limit, auth, IP',   icon: '🔧', category: 'policy' },
+    { label: 'Verify & DNS Cutover',      desc: '06-verify.sh, then update DNS — shifts live traffic',                icon: '✅', category: 'verify',     manual: true, traffic: true, filePath: '06-verify.sh' },
+    { label: 'Remove NGINX',             desc: '07-cleanup/remove-nginx.sh — only after DNS fully propagated',       icon: '🗑️', category: 'cleanup',    manual: true, danger: true, filePath: '07-cleanup/remove-nginx.sh' },
+  ],
 };
 
 export default function Migrate({ scanResult }: Props) {
@@ -169,13 +179,13 @@ export default function Migrate({ scanResult }: Props) {
         <div className="flex gap-4 items-end flex-wrap">
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1.5">Target Controller</label>
-            <div className="flex gap-2">
-              {(['traefik', 'gateway-api'] as Target[]).map(t => (
+            <div className="flex gap-2 flex-wrap">
+              {(['traefik', 'gateway-api', 'gateway-api-traefik'] as Target[]).map(t => (
                 <button key={t} onClick={() => setTarget(t)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
                     target === t ? 'bg-blue-500/20 text-blue-300 border-blue-500/40' : 'text-slate-400 border-slate-700 hover:border-slate-600 hover:text-slate-300 bg-slate-900/50'
                   }`}>
-                  {t === 'traefik' ? '🚀 Traefik v3' : '🌐 Gateway API (Envoy)'}
+                  {t === 'traefik' ? '🚀 Traefik v3' : t === 'gateway-api' ? '🌐 Gateway API (Envoy)' : '🔷 Gateway API (Traefik)'}
                 </button>
               ))}
             </div>
@@ -233,7 +243,7 @@ export default function Migrate({ scanResult }: Props) {
         <div className="rounded-xl border border-slate-700/50 bg-slate-800/40 overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-700/50 flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Migration Checklist — {target === 'traefik' ? 'Traefik v3' : 'Gateway API (Envoy Gateway v1.3)'}
+              Migration Checklist — {target === 'traefik' ? 'Traefik v3' : target === 'gateway-api' ? 'Gateway API (Envoy Gateway)' : 'Gateway API (Traefik)'}
             </span>
             <span className="text-xs text-slate-600">{doneCount}/{steps.length} completed</span>
           </div>
@@ -401,8 +411,20 @@ export default function Migrate({ scanResult }: Props) {
           <span className="text-amber-400 text-base flex-shrink-0">💡</span>
           <p className="text-sm text-amber-300/80">
             Click <strong className="text-amber-300">Generate Migration Files</strong> to produce all YAML manifests,
-            Middleware CRDs, and install scripts for <strong className="text-amber-300">{target === 'traefik' ? 'Traefik v3' : 'Envoy Gateway + Gateway API'}</strong>.
-            Files are also written to <code className="font-mono text-amber-200 bg-amber-500/10 px-1 rounded">{outputDir}</code>.
+            Middleware CRDs, and install scripts for <strong className="text-amber-300">{target === 'traefik' ? 'Traefik v3' : target === 'gateway-api' ? 'Envoy Gateway + Gateway API' : 'Traefik + Gateway API'}</strong>.
+            Files are written to <code className="font-mono text-amber-200 bg-amber-500/10 px-1 rounded">{outputDir}</code>.
+          </p>
+        </div>
+      )}
+
+      {/* Hint for Rancher users */}
+      {target === 'gateway-api-traefik' && !migrateResult && (
+        <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4 flex items-start gap-3">
+          <span className="text-cyan-400 text-base flex-shrink-0">🔷</span>
+          <p className="text-sm text-cyan-300/80">
+            <strong className="text-cyan-300">Rancher / k3s users:</strong> Traefik is already your default ingress controller.
+            This mode generates Gateway API resources using Traefik's native <code className="font-mono text-cyan-200 bg-cyan-500/10 px-1 rounded">traefik.io/gateway-controller</code>,
+            so you get the Gateway API standard without switching to Envoy.
           </p>
         </div>
       )}

@@ -38,6 +38,16 @@ For Gateway API (Envoy Gateway):
   - BackendTrafficPolicy / SecurityPolicy for advanced features
   - Verification and cleanup scripts
 
+For Gateway API (Traefik provider):
+  - Gateway API CRD install script
+  - Traefik Helm install with Gateway API provider enabled
+  - GatewayClass (traefik.io/gateway-controller) + Gateway resources
+  - Standard HTTPRoute manifests (one per Ingress)
+  - Traefik Middleware CRDs for rate limiting, auth, IP filtering
+    (Traefik's extension model, same as Envoy uses BackendTrafficPolicy)
+  - Verification and cleanup scripts
+  - Ideal for Rancher / k3s where Traefik is already the default
+
 All generated files are valid YAML you can review before applying.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runMigrate(cmd)
@@ -45,7 +55,7 @@ All generated files are valid YAML you can review before applying.`,
 }
 
 func init() {
-	migrateCmd.Flags().StringVar(&migrateTarget, "target", "", "Target controller: traefik|gateway-api (required)")
+	migrateCmd.Flags().StringVar(&migrateTarget, "target", "", "Target controller: traefik|gateway-api|gateway-api-traefik (required)")
 	migrateCmd.MarkFlagRequired("target")
 	migrateCmd.Flags().StringVar(&migrateOutputDir, "output-dir", "./migration", "Directory to write generated files")
 	rootCmd.AddCommand(migrateCmd)
@@ -53,9 +63,9 @@ func init() {
 
 func runMigrate(cmd *cobra.Command) error {
 	switch migrateTarget {
-	case "traefik", "gateway-api":
+	case "traefik", "gateway-api", "gateway-api-traefik":
 	default:
-		return fmt.Errorf("unknown target %q — use 'traefik' or 'gateway-api'", migrateTarget)
+		return fmt.Errorf("unknown target %q — use 'traefik', 'gateway-api', or 'gateway-api-traefik'", migrateTarget)
 	}
 
 	fmt.Printf("\n  ing-switch — Generating Migration Files\n")
@@ -83,6 +93,9 @@ func runMigrate(cmd *cobra.Command) error {
 		files, err = m.Migrate(scanResult, report)
 	case "gateway-api":
 		m := gatewayapi.NewMigrator()
+		files, err = m.Migrate(scanResult, report)
+	case "gateway-api-traefik":
+		m := gatewayapi.NewTraefikGatewayMigrator()
 		files, err = m.Migrate(scanResult, report)
 	}
 	if err != nil {
@@ -113,6 +126,14 @@ func runMigrate(cmd *cobra.Command) error {
 		fmt.Printf("  4. Apply %s/03-gateway/\n", migrateOutputDir)
 		fmt.Printf("  5. Apply %s/04-httproutes/\n", migrateOutputDir)
 		fmt.Printf("  6. Apply %s/05-policies/ (if applicable)\n", migrateOutputDir)
+		fmt.Printf("  7. Run %s/06-verify.sh\n", migrateOutputDir)
+	case "gateway-api-traefik":
+		fmt.Printf("  1. Review %s/00-migration-report.md\n", migrateOutputDir)
+		fmt.Printf("  2. Run %s/01-install-gateway-api-crds/install.sh\n", migrateOutputDir)
+		fmt.Printf("  3. Run %s/02-install-traefik-gateway/helm-install.sh\n", migrateOutputDir)
+		fmt.Printf("  4. Apply %s/03-gateway/\n", migrateOutputDir)
+		fmt.Printf("  5. Apply %s/04-httproutes/\n", migrateOutputDir)
+		fmt.Printf("  6. Apply %s/05-policies/ (Traefik Middlewares, if applicable)\n", migrateOutputDir)
 		fmt.Printf("  7. Run %s/06-verify.sh\n", migrateOutputDir)
 	}
 

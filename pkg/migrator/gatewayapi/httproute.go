@@ -295,21 +295,66 @@ func buildBackendFilters(annotations map[string]string) []string {
 func buildCORSFilter(annotations map[string]string) string {
 	origin := getAnnotation(annotations, "cors-allow-origin", "*")
 	methods := getAnnotation(annotations, "cors-allow-methods", "GET, PUT, POST, DELETE, PATCH, OPTIONS")
-	headers := getAnnotation(annotations, "cors-allow-headers", "Content-Type, Authorization")
+	allowHeaders := getAnnotation(annotations, "cors-allow-headers", "Content-Type, Authorization")
 	credentials := getAnnotation(annotations, "cors-allow-credentials", "true")
+	exposeHeaders := getAnnotation(annotations, "cors-expose-headers", "")
+	maxAge := getAnnotation(annotations, "cors-max-age", "86400")
 
-	return fmt.Sprintf(`    - type: ResponseHeaderModifier
-      responseHeaderModifier:
-        add:
-          - name: "Access-Control-Allow-Origin"
-            value: "%s"
-          - name: "Access-Control-Allow-Methods"
-            value: "%s"
-          - name: "Access-Control-Allow-Headers"
-            value: "%s"
-          - name: "Access-Control-Allow-Credentials"
-            value: "%s"
-`, origin, methods, headers, credentials)
+	// Native CORS filter (Standard in Gateway API v1.5)
+	var origins []string
+	for _, o := range strings.Split(origin, ",") {
+		o = strings.TrimSpace(o)
+		if o != "" {
+			origins = append(origins, fmt.Sprintf(`        - type: Exact
+          value: "%s"`, o))
+		}
+	}
+	originsYAML := strings.Join(origins, "\n")
+	if origin == "*" {
+		originsYAML = `        - type: Exact
+          value: "*"`
+	}
+
+	var methodLines []string
+	for _, m := range strings.Split(methods, ",") {
+		m = strings.TrimSpace(m)
+		if m != "" {
+			methodLines = append(methodLines, fmt.Sprintf(`        - "%s"`, m))
+		}
+	}
+
+	var headerLines []string
+	for _, h := range strings.Split(allowHeaders, ",") {
+		h = strings.TrimSpace(h)
+		if h != "" {
+			headerLines = append(headerLines, fmt.Sprintf(`        - "%s"`, h))
+		}
+	}
+
+	result := fmt.Sprintf(`    - type: CORS
+      cors:
+        allowOrigins:
+%s
+        allowMethods:
+%s
+        allowHeaders:
+%s
+        allowCredentials: %s
+        maxAge: "%ss"
+`, originsYAML, strings.Join(methodLines, "\n"), strings.Join(headerLines, "\n"), credentials, maxAge)
+
+	if exposeHeaders != "" {
+		var exposeLines []string
+		for _, h := range strings.Split(exposeHeaders, ",") {
+			h = strings.TrimSpace(h)
+			if h != "" {
+				exposeLines = append(exposeLines, fmt.Sprintf(`        - "%s"`, h))
+			}
+		}
+		result += fmt.Sprintf("        exposeHeaders:\n%s\n", strings.Join(exposeLines, "\n"))
+	}
+
+	return result
 }
 
 func buildBackendRefs(path scanner.PathInfo, isCanary bool, canaryWeight string) string {

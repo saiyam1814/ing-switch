@@ -141,4 +141,4 @@ export interface ApplyResponse {
   error?: string;
 }
 
-export type Target = 'traefik' | 'gateway-api';
+export type Target = 'traefik' | 'gateway-api' | 'gateway-api-traefik';

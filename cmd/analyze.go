@@ -27,15 +27,16 @@ Status indicators:
   unsupported - No equivalent; manual intervention required
 
 Supported targets:
-  traefik      Traefik v3.x (lowest migration friction)
-  gateway-api  Kubernetes Gateway API via Envoy Gateway`,
+  traefik              Traefik v3.x (lowest migration friction)
+  gateway-api          Kubernetes Gateway API via Envoy Gateway
+  gateway-api-traefik  Kubernetes Gateway API with Traefik as the provider`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runAnalyze(cmd)
 	},
 }
 
 func init() {
-	analyzeCmd.Flags().StringVar(&analyzeTarget, "target", "", "Target controller: traefik|gateway-api (required)")
+	analyzeCmd.Flags().StringVar(&analyzeTarget, "target", "", "Target controller: traefik|gateway-api|gateway-api-traefik (required)")
 	analyzeCmd.MarkFlagRequired("target")
 	analyzeCmd.Flags().StringVarP(&outputFormat, "output", "o", "table", "Output format: table|json")
 	rootCmd.AddCommand(analyzeCmd)
@@ -43,9 +44,9 @@ func init() {
 
 func runAnalyze(_ *cobra.Command) error {
 	switch analyzeTarget {
-	case "traefik", "gateway-api":
+	case "traefik", "gateway-api", "gateway-api-traefik":
 	default:
-		return fmt.Errorf("unknown target %q — use 'traefik' or 'gateway-api'", analyzeTarget)
+		return fmt.Errorf("unknown target %q — use 'traefik', 'gateway-api', or 'gateway-api-traefik'", analyzeTarget)
 	}
 
 	s, err := scanner.NewScanner(kubeconfig, kubecontext)

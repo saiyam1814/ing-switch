@@ -19,9 +19,15 @@ const targetInfo: Record<Target, { icon: string; name: string; badge: string; ba
   },
   'gateway-api': {
     icon: '🌐',
-    name: 'Gateway API',
+    name: 'Gateway API (Envoy)',
     badge: 'Future-proof standard',
     badgeColor: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+  },
+  'gateway-api-traefik': {
+    icon: '🔷',
+    name: 'Gateway API (Traefik)',
+    badge: 'Rancher / k3s native',
+    badgeColor: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
   },
 };
 
@@ -69,7 +75,7 @@ const Analyze = ({ scanResult, onAnalysisComplete, analysisReport }: Props) => {
         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Target Controller</div>
         <div className="flex gap-3 flex-wrap items-start">
           <div className="flex gap-3 flex-wrap">
-            {(['traefik', 'gateway-api'] as Target[]).map(t => {
+            {(['traefik', 'gateway-api', 'gateway-api-traefik'] as Target[]).map(t => {
               const info = targetInfo[t];
               const isSelected = target === t;
               return (

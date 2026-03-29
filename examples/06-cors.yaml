@@ -4,7 +4,7 @@
 # Migration complexity: COMPLEX
 # Target:
 #   Traefik: Headers Middleware with CORS settings (fully supported)
-#   Gateway API: ResponseHeaderModifier filter (manual CORS headers)
+#   Gateway API: Native CORS filter (GA in Gateway API v1.5)
 
 ---
 apiVersion: networking.k8s.io/v1

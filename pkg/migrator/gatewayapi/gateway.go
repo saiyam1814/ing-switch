@@ -12,19 +12,39 @@ const (
 	defaultGatewayNamespace = "default"
 )
 
-// generateGatewayClass creates the GatewayClass resource for Envoy Gateway.
-func generateGatewayClass() string {
-	return `apiVersion: gateway.networking.k8s.io/v1
+// Provider holds provider-specific Gateway API configuration.
+type Provider struct {
+	Name              string // "envoy" or "traefik"
+	GatewayClassName  string // "eg" or "traefik"
+	ControllerName    string // controller name for GatewayClass
+}
+
+var (
+	EnvoyProvider = Provider{
+		Name:             "envoy",
+		GatewayClassName: "eg",
+		ControllerName:   "gateway.envoyproxy.io/gatewayclass-controller",
+	}
+	TraefikProvider = Provider{
+		Name:             "traefik",
+		GatewayClassName: "traefik",
+		ControllerName:   "traefik.io/gateway-controller",
+	}
+)
+
+// generateGatewayClass creates the GatewayClass resource.
+func generateGatewayClass(p Provider) string {
+	return fmt.Sprintf(`apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass
 metadata:
-  name: eg
+  name: %s
 spec:
-  controllerName: gateway.envoyproxy.io/gatewayclass-controller
-`
+  controllerName: %s
+`, p.GatewayClassName, p.ControllerName)
 }
 
 // generateGateway creates the Gateway resource with HTTP and HTTPS listeners.
-func generateGateway(scan *scanner.ScanResult) string {
+func generateGateway(scan *scanner.ScanResult, p Provider) string {
 	// Collect all TLS secrets referenced by Ingresses
 	type tlsEntry struct {
 		hosts      []string
@@ -83,7 +103,7 @@ metadata:
   name: %s
   namespace: %s
 spec:
-  gatewayClassName: eg
+  gatewayClassName: %s
   listeners:
   - name: http
     protocol: HTTP
@@ -91,7 +111,7 @@ spec:
     allowedRoutes:
       namespaces:
         from: All
-%s`, defaultGatewayName, defaultGatewayNamespace, tlsListeners)
+%s`, defaultGatewayName, defaultGatewayNamespace, p.GatewayClassName, tlsListeners)
 }
 
 func buildHostnameList(hosts []string) string {
@@ -102,8 +122,111 @@ func buildHostnameList(hosts []string) string {
 	return fmt.Sprintf("    hostname: \"%s\"\n", hosts[0])
 }
 
-// generatePolicies creates Envoy Gateway extension policies for advanced features.
-func generatePolicies(scan *scanner.ScanResult) []policyFile {
+// generatePolicies creates provider-specific policies for advanced features.
+func generatePolicies(scan *scanner.ScanResult, p Provider) []policyFile {
+	if p.Name == "traefik" {
+		return generateTraefikGatewayPolicies(scan)
+	}
+	return generateEnvoyPolicies(scan)
+}
+
+// generateTraefikGatewayPolicies creates Traefik Middleware CRDs for Gateway API mode.
+func generateTraefikGatewayPolicies(scan *scanner.ScanResult) []policyFile {
+	var policies []policyFile
+
+	for _, ing := range scan.Ingresses {
+		annotations := ing.NginxAnnotations
+
+		// Rate limiting via Traefik Middleware
+		if _, hasRPS := annotations["limit-rps"]; hasRPS {
+			policies = append(policies, generateTraefikRateLimitMiddleware(ing))
+		}
+
+		// External auth via Traefik ForwardAuth Middleware
+		if authURL, ok := annotations["auth-url"]; ok && authURL != "" {
+			policies = append(policies, generateTraefikForwardAuthMiddleware(ing))
+		}
+
+		// IP allowlist via Traefik Middleware
+		if allowList, ok := annotations["whitelist-source-range"]; ok && allowList != "" {
+			policies = append(policies, generateTraefikIPAllowListMiddleware(ing, allowList))
+		}
+	}
+
+	return policies
+}
+
+func generateTraefikRateLimitMiddleware(ing scanner.IngressInfo) policyFile {
+	rps := ing.NginxAnnotations["limit-rps"]
+	burst := ing.NginxAnnotations["limit-burst-multiplier"]
+	if burst == "" {
+		burst = "5"
+	}
+	name := fmt.Sprintf("%s-%s-ratelimit", ing.Namespace, ing.Name)
+	yaml := fmt.Sprintf(`apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: %s
+  namespace: %s
+spec:
+  rateLimit:
+    average: %s
+    burst: %s
+`, name, ing.Namespace, rps, burst)
+	return policyFile{name: name, yaml: yaml}
+}
+
+func generateTraefikForwardAuthMiddleware(ing scanner.IngressInfo) policyFile {
+	authURL := ing.NginxAnnotations["auth-url"]
+	name := fmt.Sprintf("%s-%s-forwardauth", ing.Namespace, ing.Name)
+
+	responseHeaders := ""
+	if rh, ok := ing.NginxAnnotations["auth-response-headers"]; ok && rh != "" {
+		headers := strings.Split(rh, ",")
+		var lines []string
+		for _, h := range headers {
+			lines = append(lines, fmt.Sprintf("    - \"%s\"", strings.TrimSpace(h)))
+		}
+		responseHeaders = fmt.Sprintf("  authResponseHeaders:\n%s\n", strings.Join(lines, "\n"))
+	}
+
+	yaml := fmt.Sprintf(`apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: %s
+  namespace: %s
+spec:
+  forwardAuth:
+    address: "%s"
+%s`, name, ing.Namespace, authURL, responseHeaders)
+	return policyFile{name: name, yaml: yaml}
+}
+
+func generateTraefikIPAllowListMiddleware(ing scanner.IngressInfo, cidr string) policyFile {
+	name := fmt.Sprintf("%s-%s-ipallowlist", ing.Namespace, ing.Name)
+	cidrs := strings.Split(cidr, ",")
+	var cidrLines []string
+	for _, c := range cidrs {
+		c = strings.TrimSpace(c)
+		if c != "" {
+			cidrLines = append(cidrLines, fmt.Sprintf("    - \"%s\"", c))
+		}
+	}
+	yaml := fmt.Sprintf(`apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: %s
+  namespace: %s
+spec:
+  ipAllowList:
+    sourceRange:
+%s
+`, name, ing.Namespace, strings.Join(cidrLines, "\n"))
+	return policyFile{name: name, yaml: yaml}
+}
+
+// generateEnvoyPolicies creates Envoy Gateway extension policies for advanced features.
+func generateEnvoyPolicies(scan *scanner.ScanResult) []policyFile {
 	var policies []policyFile
 
 	for _, ing := range scan.Ingresses {

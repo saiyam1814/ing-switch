@@ -167,6 +167,9 @@ func (h *APIHandler) HandleMigrate(w http.ResponseWriter, r *http.Request) {
 	case "gateway-api":
 		m := gatewayapi.NewMigrator()
 		files, err = m.Migrate(scanResult, report)
+	case "gateway-api-traefik":
+		m := gatewayapi.NewTraefikGatewayMigrator()
+		files, err = m.Migrate(scanResult, report)
 	default:
 		writeError(w, http.StatusBadRequest, "unknown target")
 		return
@@ -343,6 +346,9 @@ func (h *APIHandler) HandleApply(w http.ResponseWriter, r *http.Request) {
 	case "gateway-api":
 		m := gatewayapi.NewMigrator()
 		files, err = m.Migrate(scanResult, report)
+	case "gateway-api-traefik":
+		m := gatewayapi.NewTraefikGatewayMigrator()
+		files, err = m.Migrate(scanResult, report)
 	default:
 		writeJSON(w, applyResponse{Success: false, Error: "unknown target"})
 		return
@@ -427,11 +433,20 @@ func categoryInstructions(category, target string) string {
 				"  helm install traefik traefik/traefik -n traefik --create-namespace -f values.yaml\n\n" +
 				"This installs Traefik alongside NGINX without affecting production traffic."
 		}
+		if target == "gateway-api-traefik" {
+			return "Install via kubectl + Helm — run the generated scripts:\n\n" +
+				"  # Gateway API CRDs:\n" +
+				"  kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.0/standard-install.yaml\n\n" +
+				"  # Traefik with Gateway API provider:\n" +
+				"  helm repo add traefik https://traefik.github.io/charts\n" +
+				"  helm install traefik traefik/traefik -n traefik --create-namespace -f values.yaml\n\n" +
+				"Traefik v3 has native Gateway API support. Works with Rancher / k3s out of the box."
+		}
 		return "Install via kubectl + Helm — run the generated scripts:\n\n" +
 			"  # Gateway API CRDs:\n" +
-			"  kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml\n\n" +
+			"  kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.0/standard-install.yaml\n\n" +
 			"  # Envoy Gateway:\n" +
-			"  helm install eg oci://docker.io/envoyproxy/gateway-helm --version v1.3.0 -n envoy-gateway-system --create-namespace"
+			"  helm install eg oci://docker.io/envoyproxy/gateway-helm --version v1.7.1 -n envoy-gateway-system --create-namespace"
 	case "verify":
 		return "Download and run verify.sh from the file viewer:\n\n" +
 			"  chmod +x verify.sh && ./verify.sh\n\n" +
@@ -507,6 +522,9 @@ func (h *APIHandler) HandleDownload(w http.ResponseWriter, r *http.Request) {
 		files, err = m.Migrate(scanResult, report)
 	case "gateway-api":
 		m := gatewayapi.NewMigrator()
+		files, err = m.Migrate(scanResult, report)
+	case "gateway-api-traefik":
+		m := gatewayapi.NewTraefikGatewayMigrator()
 		files, err = m.Migrate(scanResult, report)
 	default:
 		writeError(w, http.StatusBadRequest, "unknown target")
