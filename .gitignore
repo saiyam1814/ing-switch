@@ -17,6 +17,12 @@ migration-*/
 # Claude Code local config
 .claude/
 
+# Build output
+dist/
+
+# Test artifacts
+test-results/
+
 # OS
 .DS_Store
 *.swp
