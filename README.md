@@ -6,7 +6,7 @@
 
 **Migrate from Ingress NGINX to Traefik or Gateway API — in minutes, not days.**
 
-Ingress NGINX is being retired in March 2026. `ing-switch` scans your cluster, maps every annotation, generates migration manifests, and walks you through the cutover — with a visual UI or pure CLI.
+Ingress NGINX was [archived on March 24, 2026](https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/). `ing-switch` scans your cluster, maps all **119 NGINX annotations** with impact ratings, generates migration manifests for **3 targets**, and walks you through the cutover — with a visual UI or pure CLI.
 
 ---
 
@@ -32,25 +32,33 @@ ing-switch ui        # open the visual migration dashboard at :8080
 
 | Target | What's generated |
 |--------|-----------------|
-| **Traefik** | Traefik Middleware CRDs + updated Ingress resources (stays on `kind: Ingress`) |
-| **Gateway API** (Envoy Gateway) | GatewayClass + Gateway + HTTPRoutes + BackendTrafficPolicy + SecurityPolicy |
+| **Traefik v3** | Traefik Middleware CRDs + updated Ingress resources (stays on `kind: Ingress`) |
+| **Gateway API (Envoy)** | GatewayClass + Gateway + HTTPRoutes + BackendTrafficPolicy + SecurityPolicy |
+| **Gateway API (Traefik)** | Standard HTTPRoutes + Gateway resources with `traefik.io/gateway-controller`. Advanced features use Traefik Middleware CRDs as extension policies. Ideal for Rancher / k3s. |
 
 ---
 
 ## Annotation coverage
 
-Over 50 `nginx.ingress.kubernetes.io/*` annotations are mapped for both targets:
+**119** `nginx.ingress.kubernetes.io/*` annotations mapped for all targets:
 
-- SSL/TLS redirect, HSTS
-- CORS (all 6 fields)
-- Rate limiting, connection limits, IP allowlist/denylist
-- External authentication (`auth-url`, `auth-response-headers`)
-- Session affinity (sticky cookies)
-- Canary deployments (weight, header, cookie)
-- Path rewrite + regex routing
-- Timeouts (`proxy-read-timeout`, `proxy-connect-timeout`)
-- WebSocket, gRPC passthrough
-- Custom headers, response header modification
+| Category | Examples |
+|----------|---------|
+| SSL/TLS | ssl-redirect, force-ssl-redirect, ssl-passthrough, ssl-ciphers, auth-tls-* |
+| CORS | All 7 cors-* fields — native Gateway API v1.5 CORS filter |
+| Auth | auth-url, auth-response-headers, auth-signin, auth-cache-*, ForwardAuth |
+| Rate limiting | limit-rps, limit-rpm, limit-connections, limit-burst-multiplier |
+| Session affinity | All 9 session-cookie-* fields, affinity-mode |
+| Canary | weight, header, header-value, header-pattern, cookie |
+| Proxy/Timeouts | proxy-read/send/connect-timeout, proxy-body-size, proxy-ssl-* |
+| Routing | rewrite-target, use-regex, app-root, permanent/temporal-redirect |
+| IP access | whitelist-source-range, denylist-source-range |
+| Protocol | WebSocket, gRPC, backend-protocol |
+| Observability | enable-access-log, enable-opentelemetry |
+| WAF | enable-modsecurity, modsecurity-snippet, OWASP CRS |
+| Mirroring | mirror-target, mirror-request-body |
+
+Every unsupported annotation includes an **impact rating** (`NONE` / `LOW` / `MEDIUM` / `VARIES`) so you know what's safe to ignore vs what needs a workaround.
 
 ---
 
@@ -119,6 +127,17 @@ kubectl apply -f ./migration/02-middlewares/
 kubectl apply -f ./migration/03-ingresses/
 ```
 
+### Gateway API with Traefik (Rancher / k3s)
+
+```bash
+ing-switch migrate --target gateway-api-traefik --output-dir ./migration
+
+# Standard Gateway API resources + Traefik Middleware extensions
+kubectl apply -f ./migration/03-gateway/
+kubectl apply -f ./migration/04-httproutes/
+kubectl apply -f ./migration/05-policies/
+```
+
 ---
 
 ## Generated output structure
@@ -171,11 +190,11 @@ ing-switch scan
   --output table|json   Output format (default: table)
 
 ing-switch analyze
-  --target string       traefik | gateway-api  (required)
+  --target string       traefik | gateway-api | gateway-api-traefik  (required)
   --output table|json
 
 ing-switch migrate
-  --target string       traefik | gateway-api  (required)
+  --target string       traefik | gateway-api | gateway-api-traefik  (required)
   --output-dir string   Output directory (default: ./migration)
 
 ing-switch ui
@@ -241,7 +260,7 @@ ing-switch/
 ├── cmd/                    # Cobra CLI commands (scan, analyze, migrate, ui)
 ├── pkg/
 │   ├── scanner/            # cluster.go, ingress.go, controller.go
-│   ├── analyzer/           # annotations.go, compatibility.go (~50 annotation mappings)
+│   ├── analyzer/           # annotations.go, compatibility.go (119 annotation mappings)
 │   ├── migrator/
 │   │   ├── traefik/        # middleware.go, mappings.go
 │   │   └── gatewayapi/     # httproute.go, gateway.go, migrator.go
@@ -257,11 +276,17 @@ ing-switch/
 
 ## Why this exists
 
-**March 2026**: Ingress NGINX is being deprecated. ~50% of Kubernetes clusters depend on it.
+**March 2026**: Ingress NGINX was archived. ~50% of Kubernetes clusters depend on it.
 
-Existing tools (`ingress2gateway`) handle basic routing but miss annotation coverage and have no guidance for the 30–40% of annotations that are "partial" — they generate valid YAML but don't tell you what you lose or how to compensate.
+Existing tools (`ingress2gateway` v1.0) handle 30+ annotations with basic conversion. `ing-switch` goes further with **119 annotations**, **impact ratings** for every unsupported one, **3 migration targets** (including Gateway API with Traefik for Rancher/k3s), and a **web UI** with dry-run support.
 
-`ing-switch` was built to cover the full migration lifecycle: scan → analyze → generate → verify → cutover → cleanup.
+Full migration lifecycle: scan → analyze → generate → verify → cutover → cleanup.
+
+---
+
+## Blog Posts & Tutorials
+
+- [ing-switch: Migrate from Ingress NGINX to Traefik or Gateway API in Minutes, Not Days](https://blog.kubesimplify.com/ing-switch-migrate-from-ingress-nginx-to-traefik-or-gateway-api-in-minutes-not-days) -- Introduction, architecture, and walkthrough
 
 ---
 
