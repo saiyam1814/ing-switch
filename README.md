@@ -4,9 +4,11 @@
 
 # ing-switch
 
-**Migrate from Ingress NGINX to Traefik or Gateway API — in minutes, not days.**
+**Migrate between Kubernetes ingress controllers — in minutes, not days.**
 
-Ingress NGINX was [archived on March 24, 2026](https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/). `ing-switch` scans your cluster, maps all **119 NGINX annotations** with impact ratings, generates migration manifests for **3 targets**, and walks you through the cutover — with a visual UI or pure CLI.
+`ing-switch` scans your cluster for **Ingress resources** and **Traefik IngressRoute CRDs**, maps all **119 annotations** with impact ratings, and generates migration manifests for **3 targets** — with a visual UI or pure CLI.
+
+> Ingress NGINX was [archived on March 24, 2026](https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/). If you're still running it, migrate now.
 
 ---
 
@@ -23,7 +25,7 @@ ing-switch ui        # open the visual migration dashboard at :8080
 
 | Step | What you get |
 |------|-------------|
-| **Scan** | Ingress controller version, all ingresses across namespaces, annotation count |
+| **Scan** | Detects controller (NGINX, Traefik, Kong), finds all Ingresses + IngressRoute CRDs, annotation count |
 | **Analyze** | Per-ingress annotation compatibility table: ✅ supported / ⚠️ partial / ❌ unsupported |
 | **Migrate** | Complete output directory — Middlewares, HTTPRoutes, Gateway, policies, verify script, DNS guide, cleanup scripts |
 | **UI** | 4-page dashboard: Detect → Analyze → Migrate → Validate |
@@ -31,6 +33,17 @@ ing-switch ui        # open the visual migration dashboard at :8080
 ![ing-switch Detect](assets/ui-detect.png)
 
 ![ing-switch Migrate](assets/ui-migrate.png)
+
+---
+
+## Supported sources (auto-detected)
+
+| Source | What's scanned |
+|--------|----------------|
+| **Kubernetes Ingress** (NGINX) | Standard `kind: Ingress` with `nginx.ingress.kubernetes.io/*` annotations |
+| **Traefik IngressRoute** | `kind: IngressRoute` CRDs + referenced Middleware CRDs (rate limit, auth, CORS, IP filtering, rewrites) |
+
+The scanner auto-detects both source types in a single `ing-switch scan` — no flags needed. Controller detection works for NGINX, Traefik, Kong, and HAProxy.
 
 ---
 
@@ -271,7 +284,7 @@ Paths with regex characters (`(`, `)`, `|`, `[`, `]`) are automatically detected
 ing-switch/
 ├── cmd/                    # Cobra CLI commands (scan, analyze, migrate, ui)
 ├── pkg/
-│   ├── scanner/            # cluster.go, ingress.go, controller.go
+│   ├── scanner/            # cluster.go, ingress.go, ingressroute.go, controller.go
 │   ├── analyzer/           # annotations.go, compatibility.go (119 annotation mappings)
 │   ├── migrator/
 │   │   ├── traefik/        # middleware.go, mappings.go
@@ -288,9 +301,9 @@ ing-switch/
 
 ## Why this exists
 
-**March 2026**: Ingress NGINX was archived. ~50% of Kubernetes clusters depend on it.
+**March 2026**: Ingress NGINX was archived. ~50% of Kubernetes clusters depend on it. And Traefik IngressRoute users want to modernize to Gateway API.
 
-Existing tools (`ingress2gateway` v1.0) handle 30+ annotations with basic conversion. `ing-switch` goes further with **119 annotations**, **impact ratings** for every unsupported one, **3 migration targets** (including Gateway API with Traefik for Rancher/k3s), and a **web UI** with dry-run support.
+Existing tools (`ingress2gateway` v1.0) handle 30+ annotations with basic conversion. `ing-switch` goes further: **2 source types** (NGINX Ingress + Traefik IngressRoute), **119 annotations**, **impact ratings** for every unsupported one, **3 migration targets**, and a **web UI** with dry-run support.
 
 Full migration lifecycle: scan → analyze → generate → verify → cutover → cleanup.
 

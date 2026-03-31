@@ -17,17 +17,27 @@ type ControllerInfo struct {
 	PodName   string `json:"podName"`
 }
 
-// IngressInfo holds parsed data for a single Ingress resource.
+// SourceType identifies what kind of resource was scanned.
+type SourceType string
+
+const (
+	SourceNginxIngress      SourceType = "nginx-ingress"
+	SourceTraefikIngressRoute SourceType = "traefik-ingressroute"
+)
+
+// IngressInfo holds parsed data for a single Ingress or IngressRoute resource.
 type IngressInfo struct {
 	Namespace        string            `json:"namespace"`
 	Name             string            `json:"name"`
+	SourceType       SourceType        `json:"sourceType,omitempty"` // "nginx-ingress" | "traefik-ingressroute"
 	IngressClass     string            `json:"ingressClass"`
 	Hosts            []string          `json:"hosts"`
 	Paths            []PathInfo        `json:"paths"`
 	TLSEnabled       bool              `json:"tlsEnabled"`
 	TLSSecrets       []string          `json:"tlsSecrets"`
 	Annotations      map[string]string `json:"annotations"`       // All annotations
-	NginxAnnotations map[string]string `json:"nginxAnnotations"`  // Only nginx.ingress.kubernetes.io/*
+	NginxAnnotations map[string]string `json:"nginxAnnotations"`  // Extracted feature annotations (nginx or traefik pseudo-annotations)
+	Middlewares      []string          `json:"middlewares,omitempty"` // Traefik middleware names referenced by this route
 	Services         []ServiceRef      `json:"services"`
 	Complexity       string            `json:"complexity"` // "simple" | "complex" | "unsupported"
 }

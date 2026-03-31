@@ -4,12 +4,14 @@ import (
 	"fmt"
 
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 // Scanner holds the Kubernetes client and configuration.
 type Scanner struct {
 	client      kubernetes.Interface
+	restConfig  *rest.Config
 	clusterName string
 }
 
@@ -65,5 +67,5 @@ func NewScanner(kubeconfigPath, context string) (*Scanner, error) {
 		clusterName = configOverrides.CurrentContext
 	}
 
-	return &Scanner{client: client, clusterName: clusterName}, nil
+	return &Scanner{client: client, restConfig: restConfig, clusterName: clusterName}, nil
 }

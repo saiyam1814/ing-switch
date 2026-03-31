@@ -12,15 +12,19 @@ import (
 
 var scanCmd = &cobra.Command{
 	Use:   "scan",
-	Short: "Scan your cluster for Ingress objects and detect the ingress controller",
-	Long: `Scans the Kubernetes cluster for all Ingress resources across namespaces,
-detects which ingress controller is running, and summarizes the annotation
-complexity of each Ingress resource.
+	Short: "Scan your cluster for Ingress and IngressRoute resources",
+	Long: `Scans the Kubernetes cluster for all Ingress resources and Traefik IngressRoute
+CRDs across namespaces, detects which ingress controller is running, and
+summarizes the annotation complexity of each resource.
 
-Each Ingress is classified as:
-  simple     - Only basic routing, no complex annotations
-  complex    - Uses annotations that require migration work
-  unsupported - Uses annotations with no equivalent in target controllers`,
+Sources auto-detected:
+  Kubernetes Ingress   - Standard Ingress with nginx.ingress.kubernetes.io annotations
+  Traefik IngressRoute - IngressRoute CRDs with referenced Middleware CRDs
+
+Each resource is classified as:
+  simple     - Only basic routing, no complex annotations/middlewares
+  complex    - Uses features that require migration work
+  unsupported - Uses features with no equivalent in target controllers`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if runScan(cmd) {
 			return fmt.Errorf("scan failed")
@@ -80,11 +84,28 @@ func printScanResult(result *scanner.ScanResult) {
 		return
 	}
 
-	fmt.Printf("  Found %d Ingress resource(s)\n\n", len(result.Ingresses))
+	// Count by source type
+	nginxCount := 0
+	irCount := 0
+	for _, ing := range result.Ingresses {
+		if ing.SourceType == scanner.SourceTraefikIngressRoute {
+			irCount++
+		} else {
+			nginxCount++
+		}
+	}
+
+	fmt.Printf("  Found %d resource(s)", len(result.Ingresses))
+	if irCount > 0 && nginxCount > 0 {
+		fmt.Printf(" (%d Ingress, %d IngressRoute)", nginxCount, irCount)
+	} else if irCount > 0 {
+		fmt.Printf(" (%d IngressRoute)", irCount)
+	}
+	fmt.Printf("\n\n")
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	fmt.Fprintf(w, "  NAMESPACE\tNAME\tHOSTS\tANNOTATIONS\tTLS\tCOMPLEXITY\n")
-	fmt.Fprintf(w, "  ---------\t----\t-----\t-----------\t---\t----------\n")
+	fmt.Fprintf(w, "  NAMESPACE\tNAME\tTYPE\tHOSTS\tANNOTATIONS\tTLS\tCOMPLEXITY\n")
+	fmt.Fprintf(w, "  ---------\t----\t----\t-----\t-----------\t---\t----------\n")
 
 	for _, ing := range result.Ingresses {
 		hosts := ""
@@ -99,8 +120,12 @@ func printScanResult(result *scanner.ScanResult) {
 			tls = "yes"
 		}
 		complexity := complexityIcon(ing.Complexity)
-		fmt.Fprintf(w, "  %s\t%s\t%s\t%d\t%s\t%s\n",
-			ing.Namespace, ing.Name, hosts, len(ing.NginxAnnotations), tls, complexity)
+		sourceLabel := "Ingress"
+		if ing.SourceType == scanner.SourceTraefikIngressRoute {
+			sourceLabel = "IngressRoute"
+		}
+		fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%d\t%s\t%s\n",
+			ing.Namespace, ing.Name, sourceLabel, hosts, len(ing.NginxAnnotations), tls, complexity)
 	}
 	w.Flush()
 

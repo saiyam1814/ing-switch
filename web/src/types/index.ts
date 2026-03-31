@@ -23,6 +23,7 @@ export interface ServiceRef {
 export interface IngressInfo {
   namespace: string;
   name: string;
+  sourceType?: 'nginx-ingress' | 'traefik-ingressroute';
   ingressClass: string;
   hosts: string[];
   paths: PathInfo[];
@@ -30,6 +31,7 @@ export interface IngressInfo {
   tlsSecrets: string[];
   annotations: Record<string, string>;
   nginxAnnotations: Record<string, string>;
+  middlewares?: string[];
   services: ServiceRef[];
   complexity: 'simple' | 'complex' | 'unsupported';
 }

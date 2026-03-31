@@ -12,10 +12,19 @@ import (
 const nginxAnnotationPrefix = "nginx.ingress.kubernetes.io/"
 
 // Scan performs a full cluster scan and returns a ScanResult.
+// It scans both standard Kubernetes Ingresses and Traefik IngressRoute CRDs.
 func (s *Scanner) Scan(namespace string) (*ScanResult, error) {
 	ingresses, err := s.listIngresses(namespace)
 	if err != nil {
 		return nil, err
+	}
+
+	// Also scan for Traefik IngressRoutes (non-fatal if CRDs don't exist)
+	if s.restConfig != nil {
+		irIngresses, err := s.ScanIngressRoutes(namespace, s.restConfig)
+		if err == nil && len(irIngresses) > 0 {
+			ingresses = append(ingresses, irIngresses...)
+		}
 	}
 
 	controller, err := s.detectController()
@@ -60,6 +69,7 @@ func parseIngress(ing networkingv1.Ingress) IngressInfo {
 	info := IngressInfo{
 		Namespace:        ing.Namespace,
 		Name:             ing.Name,
+		SourceType:       SourceNginxIngress,
 		Annotations:      ing.Annotations,
 		NginxAnnotations: make(map[string]string),
 	}
