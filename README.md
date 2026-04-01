@@ -17,8 +17,10 @@
 ## What it does
 
 ```
-ing-switch scan      # detect your controller + list all ingresses
+ing-switch doctor    # quick health check — migration readiness at a glance
+ing-switch scan      # detect controller + list all ingresses & IngressRoutes
 ing-switch analyze   # map every annotation to the target controller
+ing-switch diff      # visual before/after diff per resource
 ing-switch migrate   # generate ready-to-apply manifests
 ing-switch ui        # open the visual migration dashboard at :8080
 ```
@@ -211,19 +213,25 @@ Flags (global):
   --context string      kubeconfig context to use
   --namespace string    Limit to one namespace (default: all)
 
+ing-switch doctor                     Quick health check + migration readiness score
+
 ing-switch scan
-  --output table|json   Output format (default: table)
+  --output table|json                 Output format (default: table)
 
 ing-switch analyze
-  --target string       traefik | gateway-api | gateway-api-traefik  (required)
+  --target string                     traefik | gateway-api | gateway-api-traefik  (required)
   --output table|json
 
+ing-switch diff
+  --target string                     traefik | gateway-api | gateway-api-traefik  (required)
+  --name string                       Filter to a specific resource name
+
 ing-switch migrate
-  --target string       traefik | gateway-api | gateway-api-traefik  (required)
-  --output-dir string   Output directory (default: ./migration)
+  --target string                     traefik | gateway-api | gateway-api-traefik  (required)
+  --output-dir string                 Output directory (default: ./migration)
 
 ing-switch ui
-  --port int            Port for the web UI (default: 8080)
+  --port int                          Port for the web UI (default: 8080)
 ```
 
 ---

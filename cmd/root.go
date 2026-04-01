@@ -16,22 +16,25 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "ing-switch",
-	Short: "Kubernetes Ingress migration tool — scan, analyze, and migrate from Ingress NGINX",
-	Long: `ing-switch is a single-stop solution for migrating Kubernetes Ingress resources
-away from the retiring Ingress NGINX controller.
-
-It scans your cluster, analyzes annotation compatibility, generates migration
-manifests for Traefik or Gateway API, and provides a local UI to visualize the
-migration plan.
+	Short: "Migrate between Kubernetes ingress controllers — scan, analyze, diff, and migrate",
+	Long: `ing-switch scans your cluster for Ingress resources and Traefik IngressRoute CRDs,
+analyzes compatibility, generates migration manifests for Traefik or Gateway API,
+and provides a local UI to visualize the migration plan.
 
 Examples:
-  # Scan cluster for all ingresses
+  # Quick health check
+  ing-switch doctor
+
+  # Scan cluster (auto-detects Ingress + IngressRoute)
   ing-switch scan
 
-  # Analyze compatibility with Traefik
-  ing-switch analyze --target traefik
+  # Analyze compatibility with Gateway API
+  ing-switch analyze --target gateway-api-traefik
 
-  # Generate migration files for Gateway API
+  # Visual diff — before/after for each resource
+  ing-switch diff --target gateway-api
+
+  # Generate migration files
   ing-switch migrate --target gateway-api --output-dir ./migration
 
   # Open local UI
