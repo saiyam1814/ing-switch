@@ -105,8 +105,11 @@ func runDiff() error {
 
 		key := ing.Namespace + "-" + ing.Name
 		sourceType := "Ingress"
-		if ing.SourceType == scanner.SourceTraefikIngressRoute {
+		switch ing.SourceType {
+		case scanner.SourceTraefikIngressRoute:
 			sourceType = "IngressRoute"
+		case scanner.SourceKongIngress:
+			sourceType = "Kong Ingress"
 		}
 
 		fmt.Printf("\n%s\n", strings.Repeat("=", 80))

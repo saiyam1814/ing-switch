@@ -19,11 +19,28 @@ func (s *Scanner) Scan(namespace string) (*ScanResult, error) {
 		return nil, err
 	}
 
-	// Also scan for Traefik IngressRoutes (non-fatal if CRDs don't exist)
 	if s.restConfig != nil {
+		// Scan for Traefik IngressRoutes (non-fatal if CRDs don't exist)
 		irIngresses, err := s.ScanIngressRoutes(namespace, s.restConfig)
 		if err == nil && len(irIngresses) > 0 {
 			ingresses = append(ingresses, irIngresses...)
+		}
+
+		// Scan for Kong Ingresses — standard Ingress with konghq.com annotations + KongPlugin CRDs
+		kongIngresses, err := s.ScanKongIngresses(namespace, s.restConfig)
+		if err == nil && len(kongIngresses) > 0 {
+			// Remove duplicates: Kong ingresses were already in the NGINX list, replace them
+			kongNames := make(map[string]bool)
+			for _, ki := range kongIngresses {
+				kongNames[ki.Namespace+"/"+ki.Name] = true
+			}
+			filtered := make([]IngressInfo, 0, len(ingresses))
+			for _, ing := range ingresses {
+				if !kongNames[ing.Namespace+"/"+ing.Name] {
+					filtered = append(filtered, ing)
+				}
+			}
+			ingresses = append(filtered, kongIngresses...)
 		}
 	}
 

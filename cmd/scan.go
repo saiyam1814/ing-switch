@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/saiyam1814/ing-switch/pkg/scanner"
@@ -87,19 +88,31 @@ func printScanResult(result *scanner.ScanResult) {
 	// Count by source type
 	nginxCount := 0
 	irCount := 0
+	kongCount := 0
 	for _, ing := range result.Ingresses {
-		if ing.SourceType == scanner.SourceTraefikIngressRoute {
+		switch ing.SourceType {
+		case scanner.SourceTraefikIngressRoute:
 			irCount++
-		} else {
+		case scanner.SourceKongIngress:
+			kongCount++
+		default:
 			nginxCount++
 		}
 	}
 
 	fmt.Printf("  Found %d resource(s)", len(result.Ingresses))
-	if irCount > 0 && nginxCount > 0 {
-		fmt.Printf(" (%d Ingress, %d IngressRoute)", nginxCount, irCount)
-	} else if irCount > 0 {
-		fmt.Printf(" (%d IngressRoute)", irCount)
+	parts := []string{}
+	if nginxCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d Ingress", nginxCount))
+	}
+	if irCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d IngressRoute", irCount))
+	}
+	if kongCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d Kong", kongCount))
+	}
+	if len(parts) > 1 {
+		fmt.Printf(" (%s)", strings.Join(parts, ", "))
 	}
 	fmt.Printf("\n\n")
 
@@ -121,8 +134,11 @@ func printScanResult(result *scanner.ScanResult) {
 		}
 		complexity := complexityIcon(ing.Complexity)
 		sourceLabel := "Ingress"
-		if ing.SourceType == scanner.SourceTraefikIngressRoute {
+		switch ing.SourceType {
+		case scanner.SourceTraefikIngressRoute:
 			sourceLabel = "IngressRoute"
+		case scanner.SourceKongIngress:
+			sourceLabel = "Kong"
 		}
 		fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%d\t%s\t%s\n",
 			ing.Namespace, ing.Name, sourceLabel, hosts, len(ing.NginxAnnotations), tls, complexity)

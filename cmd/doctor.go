@@ -76,21 +76,31 @@ func runDoctor() error {
 	// Count by source type
 	nginxCount := 0
 	irCount := 0
+	kongCount := 0
 	for _, ing := range result.Ingresses {
-		if ing.SourceType == scanner.SourceTraefikIngressRoute {
+		switch ing.SourceType {
+		case scanner.SourceTraefikIngressRoute:
 			irCount++
-		} else {
+		case scanner.SourceKongIngress:
+			kongCount++
+		default:
 			nginxCount++
 		}
 	}
 
 	fmt.Printf("  [OK]   Found %d resource(s)", len(result.Ingresses))
-	if nginxCount > 0 && irCount > 0 {
-		fmt.Printf(" (%d Ingress, %d IngressRoute)", nginxCount, irCount)
-	} else if irCount > 0 {
-		fmt.Printf(" (%d IngressRoute)", irCount)
-	} else {
-		fmt.Printf(" (%d Ingress)", nginxCount)
+	var parts []string
+	if nginxCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d Ingress", nginxCount))
+	}
+	if irCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d IngressRoute", irCount))
+	}
+	if kongCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d Kong", kongCount))
+	}
+	if len(parts) > 0 {
+		fmt.Printf(" (%s)", strings.Join(parts, ", "))
 	}
 	fmt.Printf(" across %d namespace(s)\n", len(result.Namespaces))
 

@@ -44,8 +44,9 @@ ing-switch ui        # open the visual migration dashboard at :8080
 |--------|----------------|
 | **Kubernetes Ingress** (NGINX) | Standard `kind: Ingress` with `nginx.ingress.kubernetes.io/*` annotations |
 | **Traefik IngressRoute** | `kind: IngressRoute` CRDs + referenced Middleware CRDs (rate limit, auth, CORS, IP filtering, rewrites) |
+| **Kong Ingress** | Standard `kind: Ingress` with `konghq.com/*` annotations + referenced KongPlugin / KongClusterPlugin CRDs (rate-limiting, cors, ip-restriction, basic-auth, request-transformer, etc.) |
 
-The scanner auto-detects both source types in a single `ing-switch scan` — no flags needed. Controller detection works for NGINX, Traefik, Kong, and HAProxy.
+The scanner auto-detects all source types in a single `ing-switch scan` — no flags needed. Controller detection works for NGINX, Traefik, Kong, and HAProxy.
 
 ---
 
@@ -292,7 +293,7 @@ Paths with regex characters (`(`, `)`, `|`, `[`, `]`) are automatically detected
 ing-switch/
 ├── cmd/                    # Cobra CLI commands (scan, analyze, migrate, ui)
 ├── pkg/
-│   ├── scanner/            # cluster.go, ingress.go, ingressroute.go, controller.go
+│   ├── scanner/            # cluster.go, ingress.go, ingressroute.go, kong.go, controller.go
 │   ├── analyzer/           # annotations.go, compatibility.go (119 annotation mappings)
 │   ├── migrator/
 │   │   ├── traefik/        # middleware.go, mappings.go
@@ -311,7 +312,7 @@ ing-switch/
 
 **March 2026**: Ingress NGINX was archived. ~50% of Kubernetes clusters depend on it. And Traefik IngressRoute users want to modernize to Gateway API.
 
-Existing tools (`ingress2gateway` v1.0) handle 30+ annotations with basic conversion. `ing-switch` goes further: **2 source types** (NGINX Ingress + Traefik IngressRoute), **119 annotations**, **impact ratings** for every unsupported one, **3 migration targets**, and a **web UI** with dry-run support.
+Existing tools (`ingress2gateway` v1.0) handle 30+ annotations with basic conversion. `ing-switch` goes further: **3 source types** (NGINX Ingress + Traefik IngressRoute + Kong), **119 annotations**, **impact ratings** for every unsupported one, **3 migration targets**, and a **web UI** with dry-run support.
 
 Full migration lifecycle: scan → analyze → generate → verify → cutover → cleanup.
 
