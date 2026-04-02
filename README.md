@@ -4,11 +4,11 @@
 
 # ing-switch
 
-**Migrate between Kubernetes ingress controllers — in minutes, not days.**
+**The universal Kubernetes ingress migration tool — scan, analyze, and migrate in minutes.**
 
-`ing-switch` scans your cluster for **Ingress resources** and **Traefik IngressRoute CRDs**, maps all **119 annotations** with impact ratings, and generates migration manifests for **3 targets** — with a visual UI or pure CLI.
+`ing-switch` scans your cluster for ingress resources across **all 5 major controllers** (NGINX, Traefik, Kong, HAProxy, Istio), maps **119+ annotations** with impact ratings, and generates migration manifests for **3 targets** — with a visual UI or pure CLI.
 
-> Ingress NGINX was [archived on March 24, 2026](https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/). If you're still running it, migrate now.
+> Ingress NGINX was [archived on March 24, 2026](https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/). If you're still running it, migrate now. Running Kong, HAProxy, or Istio? ing-switch has you covered too.
 
 ---
 
@@ -18,18 +18,22 @@
 
 ```
 ing-switch doctor    # quick health check — migration readiness at a glance
-ing-switch scan      # detect controller + list all ingresses & IngressRoutes
+ing-switch scan      # detect controller + list all ingresses, IngressRoutes, VirtualServices
 ing-switch analyze   # map every annotation to the target controller
 ing-switch diff      # visual before/after diff per resource
 ing-switch migrate   # generate ready-to-apply manifests
+ing-switch apply     # apply manifests directly (--dry-run, --category)
+ing-switch report    # generate shareable HTML report
 ing-switch ui        # open the visual migration dashboard at :8080
 ```
 
 | Step | What you get |
 |------|-------------|
-| **Scan** | Detects controller (NGINX, Traefik, Kong), finds all Ingresses + IngressRoute CRDs, annotation count |
-| **Analyze** | Per-ingress annotation compatibility table: ✅ supported / ⚠️ partial / ❌ unsupported |
+| **Scan** | Detects controller (NGINX, Traefik, Kong, HAProxy, Istio), finds all Ingresses + IngressRoutes + VirtualServices |
+| **Analyze** | Per-ingress annotation compatibility table: ✅ supported / ⚠️ partial / ❌ unsupported. `--ci` flag for pipeline gating |
 | **Migrate** | Complete output directory — Middlewares, HTTPRoutes, Gateway, policies, verify script, DNS guide, cleanup scripts |
+| **Apply** | Apply manifests directly via `kubectl` — `--dry-run` for preview, `--category` for step-by-step |
+| **Report** | Self-contained HTML report with readiness score — shareable with non-technical stakeholders |
 | **UI** | 4-page dashboard: Detect → Analyze → Migrate → Validate |
 
 ![ing-switch Detect](assets/ui-detect.png)
@@ -45,8 +49,10 @@ ing-switch ui        # open the visual migration dashboard at :8080
 | **Kubernetes Ingress** (NGINX) | Standard `kind: Ingress` with `nginx.ingress.kubernetes.io/*` annotations |
 | **Traefik IngressRoute** | `kind: IngressRoute` CRDs + referenced Middleware CRDs (rate limit, auth, CORS, IP filtering, rewrites) |
 | **Kong Ingress** | Standard `kind: Ingress` with `konghq.com/*` annotations + referenced KongPlugin / KongClusterPlugin CRDs (rate-limiting, cors, ip-restriction, basic-auth, request-transformer, etc.) |
+| **HAProxy Ingress** | Standard `kind: Ingress` with `haproxy-ingress.github.io/*` and `haproxy.org/*` annotations (SSL, CORS, auth, rate-limit, timeouts, affinity, rewrites, load-balancing) |
+| **Istio VirtualService** | `networking.istio.io` VirtualService CRDs — HTTP routes, TLS, CORS policy, retries, timeouts, fault injection, traffic mirroring, weighted routing, header manipulation |
 
-The scanner auto-detects all source types in a single `ing-switch scan` — no flags needed. Controller detection works for NGINX, Traefik, Kong, and HAProxy.
+The scanner auto-detects all 5 source types in a single `ing-switch scan` — no flags needed. Controller detection works for NGINX, Traefik, Kong, HAProxy, and Istio.
 
 ---
 
@@ -131,11 +137,15 @@ ing-switch analyze --target gateway-api
 # 3. Migrate — generate all manifests
 ing-switch migrate --target gateway-api --output-dir ./migration
 
-# 4. Review then apply
-kubectl apply -f ./migration/03-gateway/
-kubectl apply -f ./migration/04-httproutes/
+# 4. Review then apply (dry-run first)
+ing-switch apply --target gateway-api --dry-run
+ing-switch apply --target gateway-api
 
-# 5. Open the visual UI (optional)
+# 5. Or apply step-by-step
+ing-switch apply --target gateway-api --category gateway
+ing-switch apply --target gateway-api --category httproute
+
+# 6. Open the visual UI (optional)
 ing-switch ui
 ```
 
@@ -144,9 +154,10 @@ ing-switch ui
 ```bash
 ing-switch migrate --target traefik --output-dir ./migration
 
-# Apply middlewares first, then updated ingresses
-kubectl apply -f ./migration/02-middlewares/
-kubectl apply -f ./migration/03-ingresses/
+# Apply directly (dry-run first)
+ing-switch apply --target traefik --dry-run
+ing-switch apply --target traefik --category middleware
+ing-switch apply --target traefik --category ingress
 ```
 
 ### Gateway API with Traefik (Rancher / k3s)
@@ -222,6 +233,7 @@ ing-switch scan
 ing-switch analyze
   --target string                     traefik | gateway-api | gateway-api-traefik  (required)
   --output table|json
+  --ci                                Exit 1 on unsupported, exit 2 on partial (for CI/CD pipelines)
 
 ing-switch diff
   --target string                     traefik | gateway-api | gateway-api-traefik  (required)
@@ -230,6 +242,15 @@ ing-switch diff
 ing-switch migrate
   --target string                     traefik | gateway-api | gateway-api-traefik  (required)
   --output-dir string                 Output directory (default: ./migration)
+
+ing-switch apply
+  --target string                     traefik | gateway-api | gateway-api-traefik  (required)
+  --category string                   middleware | ingress | gateway | httproute | policy (omit for all)
+  --dry-run                           Preview with kubectl --dry-run=server
+
+ing-switch report
+  --target string                     traefik | gateway-api | gateway-api-traefik  (required)
+  --output string                     Output HTML file (default: migration-report.html)
 
 ing-switch ui
   --port int                          Port for the web UI (default: 8080)
@@ -291,14 +312,14 @@ Paths with regex characters (`(`, `)`, `|`, `[`, `]`) are automatically detected
 
 ```
 ing-switch/
-├── cmd/                    # Cobra CLI commands (scan, analyze, migrate, ui)
+├── cmd/                    # Cobra CLI commands (scan, analyze, migrate, apply, report, diff, doctor, ui)
 ├── pkg/
-│   ├── scanner/            # cluster.go, ingress.go, ingressroute.go, kong.go, controller.go
-│   ├── analyzer/           # annotations.go, compatibility.go (119 annotation mappings)
+│   ├── scanner/            # cluster.go, ingress.go, ingressroute.go, kong.go, haproxy.go, istio.go
+│   ├── analyzer/           # annotations.go, compatibility.go (119+ annotation mappings)
 │   ├── migrator/
 │   │   ├── traefik/        # middleware.go, mappings.go
 │   │   └── gatewayapi/     # httproute.go, gateway.go, migrator.go
-│   ├── generator/          # output.go, report.go, ZIP generation
+│   ├── generator/          # output.go, htmlreport.go, ZIP generation
 │   └── server/             # HTTP server, REST API, embedded React UI
 └── web/                    # React 18 + TypeScript + Tailwind CSS + Vite
     └── src/
@@ -312,9 +333,9 @@ ing-switch/
 
 **March 2026**: Ingress NGINX was archived. ~50% of Kubernetes clusters depend on it. And Traefik IngressRoute users want to modernize to Gateway API.
 
-Existing tools (`ingress2gateway` v1.0) handle 30+ annotations with basic conversion. `ing-switch` goes further: **3 source types** (NGINX Ingress + Traefik IngressRoute + Kong), **119 annotations**, **impact ratings** for every unsupported one, **3 migration targets**, and a **web UI** with dry-run support.
+Existing tools (`ingress2gateway` v1.0) handle 30+ annotations with basic conversion. `ing-switch` goes further: **5 source controllers** (NGINX + Traefik + Kong + HAProxy + Istio), **119+ annotations**, **impact ratings** for every unsupported one, **3 migration targets**, a **web UI** with dry-run support, **CI pipeline gating**, and **HTML reports** for stakeholders.
 
-Full migration lifecycle: scan → analyze → generate → verify → cutover → cleanup.
+Full migration lifecycle: scan → analyze → generate → apply → verify → cutover → cleanup.
 
 ---
 
