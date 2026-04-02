@@ -37,6 +37,10 @@ Examples:
   # Generate migration files
   ing-switch migrate --target gateway-api --output-dir ./migration
 
+  # Apply migration manifests (dry-run first)
+  ing-switch apply --target traefik --dry-run
+  ing-switch apply --target traefik --category middleware
+
   # Open local UI
   ing-switch ui`,
 }

@@ -24,6 +24,8 @@ const (
 	SourceNginxIngress        SourceType = "nginx-ingress"
 	SourceTraefikIngressRoute SourceType = "traefik-ingressroute"
 	SourceKongIngress         SourceType = "kong-ingress"
+	SourceHAProxyIngress      SourceType = "haproxy-ingress"
+	SourceIstioVirtualService SourceType = "istio-virtualservice"
 )
 
 // IngressInfo holds parsed data for a single Ingress or IngressRoute resource.

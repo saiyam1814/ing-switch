@@ -23,7 +23,7 @@ export interface ServiceRef {
 export interface IngressInfo {
   namespace: string;
   name: string;
-  sourceType?: 'nginx-ingress' | 'traefik-ingressroute' | 'kong-ingress';
+  sourceType?: 'nginx-ingress' | 'traefik-ingressroute' | 'kong-ingress' | 'haproxy-ingress' | 'istio-virtualservice';
   ingressClass: string;
   hosts: string[];
   paths: PathInfo[];

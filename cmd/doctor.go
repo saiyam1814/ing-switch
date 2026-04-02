@@ -15,8 +15,8 @@ var doctorCmd = &cobra.Command{
 	Long: `Performs a single-command health check of your cluster's ingress migration status.
 
 Shows:
-  - Controller detection (NGINX, Traefik, Kong)
-  - Resource counts (Ingress + IngressRoute)
+  - Controller detection (NGINX, Traefik, Kong, HAProxy, Istio)
+  - Resource counts (Ingress, IngressRoute, VirtualService)
   - Annotation complexity breakdown
   - Migration readiness per target
   - Recommended next steps`,
@@ -77,12 +77,18 @@ func runDoctor() error {
 	nginxCount := 0
 	irCount := 0
 	kongCount := 0
+	haproxyCount := 0
+	istioCount := 0
 	for _, ing := range result.Ingresses {
 		switch ing.SourceType {
 		case scanner.SourceTraefikIngressRoute:
 			irCount++
 		case scanner.SourceKongIngress:
 			kongCount++
+		case scanner.SourceHAProxyIngress:
+			haproxyCount++
+		case scanner.SourceIstioVirtualService:
+			istioCount++
 		default:
 			nginxCount++
 		}
@@ -98,6 +104,12 @@ func runDoctor() error {
 	}
 	if kongCount > 0 {
 		parts = append(parts, fmt.Sprintf("%d Kong", kongCount))
+	}
+	if haproxyCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d HAProxy", haproxyCount))
+	}
+	if istioCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d Istio VS", istioCount))
 	}
 	if len(parts) > 0 {
 		fmt.Printf(" (%s)", strings.Join(parts, ", "))
@@ -178,8 +190,15 @@ func runDoctor() error {
 		for _, ing := range result.Ingresses {
 			if ing.Complexity == "unsupported" {
 				src := "Ingress"
-				if ing.SourceType == scanner.SourceTraefikIngressRoute {
+				switch ing.SourceType {
+				case scanner.SourceTraefikIngressRoute:
 					src = "IngressRoute"
+				case scanner.SourceKongIngress:
+					src = "Kong"
+				case scanner.SourceHAProxyIngress:
+					src = "HAProxy"
+				case scanner.SourceIstioVirtualService:
+					src = "Istio VS"
 				}
 				fmt.Printf("    %s/%s (%s)\n", ing.Namespace, ing.Name, src)
 			}

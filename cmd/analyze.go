@@ -13,6 +13,7 @@ import (
 
 var (
 	analyzeTarget string
+	analyzeCI     bool
 )
 
 var analyzeCmd = &cobra.Command{
@@ -29,7 +30,13 @@ Status indicators:
 Supported targets:
   traefik              Traefik v3.x (lowest migration friction)
   gateway-api          Kubernetes Gateway API via Envoy Gateway
-  gateway-api-traefik  Kubernetes Gateway API with Traefik as the provider`,
+  gateway-api-traefik  Kubernetes Gateway API with Traefik as the provider
+
+CI mode (--ci):
+  Exits with code 1 if any ingress has unsupported annotations (breaking).
+  Exits with code 2 if any ingress needs workarounds (partial).
+  Exits with code 0 if all ingresses are fully compatible.
+  Useful for CI/CD pipelines to gate deployments on migration readiness.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runAnalyze(cmd)
 	},
@@ -39,6 +46,7 @@ func init() {
 	analyzeCmd.Flags().StringVar(&analyzeTarget, "target", "", "Target controller: traefik|gateway-api|gateway-api-traefik (required)")
 	analyzeCmd.MarkFlagRequired("target")
 	analyzeCmd.Flags().StringVarP(&outputFormat, "output", "o", "table", "Output format: table|json")
+	analyzeCmd.Flags().BoolVar(&analyzeCI, "ci", false, "CI mode: exit 1 on unsupported, exit 2 on partial annotations")
 	rootCmd.AddCommand(analyzeCmd)
 }
 
@@ -66,10 +74,24 @@ func runAnalyze(_ *cobra.Command) error {
 	case "json":
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		return enc.Encode(report)
+		if err := enc.Encode(report); err != nil {
+			return err
+		}
 	default:
 		printAnalysisReport(report)
 	}
+
+	if analyzeCI {
+		if report.Summary.HasUnsupported > 0 {
+			fmt.Fprintf(os.Stderr, "\nCI: %d ingress(es) have unsupported annotations — exiting with code 1\n", report.Summary.HasUnsupported)
+			os.Exit(1)
+		}
+		if report.Summary.NeedsWorkaround > 0 {
+			fmt.Fprintf(os.Stderr, "\nCI: %d ingress(es) need workarounds — exiting with code 2\n", report.Summary.NeedsWorkaround)
+			os.Exit(2)
+		}
+	}
+
 	return nil
 }
 

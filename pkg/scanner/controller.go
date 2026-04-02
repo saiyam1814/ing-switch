@@ -12,7 +12,8 @@ func (s *Scanner) detectController() (ControllerInfo, error) {
 	// Search common namespaces
 	candidateNamespaces := []string{
 		"ingress-nginx", "nginx-ingress", "kube-system",
-		"traefik", "kong", "default",
+		"traefik", "kong", "haproxy-controller", "haproxy-ingress",
+		"istio-system", "istio-ingress", "default",
 	}
 
 	// Known controller label selectors
@@ -30,6 +31,10 @@ func (s *Scanner) detectController() (ControllerInfo, error) {
 		{selector: "app=kong", ctrlType: "kong"},
 		{selector: "app.kubernetes.io/name=kong", ctrlType: "kong"},
 		{selector: "app.kubernetes.io/name=haproxy-ingress", ctrlType: "haproxy"},
+		{selector: "app=haproxy-ingress", ctrlType: "haproxy"},
+		{selector: "app=istiod", ctrlType: "istio"},
+		{selector: "istio=pilot", ctrlType: "istio"},
+		{selector: "app=istio-ingressgateway", ctrlType: "istio"},
 	}
 
 	for _, ns := range candidateNamespaces {

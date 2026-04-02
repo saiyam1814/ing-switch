@@ -19,8 +19,11 @@ CRDs across namespaces, detects which ingress controller is running, and
 summarizes the annotation complexity of each resource.
 
 Sources auto-detected:
-  Kubernetes Ingress   - Standard Ingress with nginx.ingress.kubernetes.io annotations
-  Traefik IngressRoute - IngressRoute CRDs with referenced Middleware CRDs
+  Kubernetes Ingress    - Standard Ingress with nginx.ingress.kubernetes.io annotations
+  Traefik IngressRoute  - IngressRoute CRDs with referenced Middleware CRDs
+  Kong Ingress          - Standard Ingress with konghq.com annotations + KongPlugin CRDs
+  HAProxy Ingress       - Standard Ingress with haproxy-ingress.github.io annotations
+  Istio VirtualService  - networking.istio.io VirtualService CRDs
 
 Each resource is classified as:
   simple     - Only basic routing, no complex annotations/middlewares
@@ -89,12 +92,18 @@ func printScanResult(result *scanner.ScanResult) {
 	nginxCount := 0
 	irCount := 0
 	kongCount := 0
+	haproxyCount := 0
+	istioCount := 0
 	for _, ing := range result.Ingresses {
 		switch ing.SourceType {
 		case scanner.SourceTraefikIngressRoute:
 			irCount++
 		case scanner.SourceKongIngress:
 			kongCount++
+		case scanner.SourceHAProxyIngress:
+			haproxyCount++
+		case scanner.SourceIstioVirtualService:
+			istioCount++
 		default:
 			nginxCount++
 		}
@@ -110,6 +119,12 @@ func printScanResult(result *scanner.ScanResult) {
 	}
 	if kongCount > 0 {
 		parts = append(parts, fmt.Sprintf("%d Kong", kongCount))
+	}
+	if haproxyCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d HAProxy", haproxyCount))
+	}
+	if istioCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d Istio VS", istioCount))
 	}
 	if len(parts) > 1 {
 		fmt.Printf(" (%s)", strings.Join(parts, ", "))
@@ -139,6 +154,10 @@ func printScanResult(result *scanner.ScanResult) {
 			sourceLabel = "IngressRoute"
 		case scanner.SourceKongIngress:
 			sourceLabel = "Kong"
+		case scanner.SourceHAProxyIngress:
+			sourceLabel = "HAProxy"
+		case scanner.SourceIstioVirtualService:
+			sourceLabel = "Istio VS"
 		}
 		fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%d\t%s\t%s\n",
 			ing.Namespace, ing.Name, sourceLabel, hosts, len(ing.NginxAnnotations), tls, complexity)

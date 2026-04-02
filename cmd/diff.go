@@ -110,6 +110,10 @@ func runDiff() error {
 			sourceType = "IngressRoute"
 		case scanner.SourceKongIngress:
 			sourceType = "Kong Ingress"
+		case scanner.SourceHAProxyIngress:
+			sourceType = "HAProxy Ingress"
+		case scanner.SourceIstioVirtualService:
+			sourceType = "Istio VirtualService"
 		}
 
 		fmt.Printf("\n%s\n", strings.Repeat("=", 80))

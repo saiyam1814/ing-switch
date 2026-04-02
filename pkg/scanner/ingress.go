@@ -42,6 +42,28 @@ func (s *Scanner) Scan(namespace string) (*ScanResult, error) {
 			}
 			ingresses = append(filtered, kongIngresses...)
 		}
+
+		// Scan for Istio VirtualServices — networking.istio.io CRDs
+		istioVS, err := s.ScanIstioVirtualServices(namespace, s.restConfig)
+		if err == nil && len(istioVS) > 0 {
+			ingresses = append(ingresses, istioVS...)
+		}
+
+		// Scan for HAProxy Ingresses — standard Ingress with haproxy annotations
+		haproxyIngresses, err := s.ScanHAProxyIngresses(namespace)
+		if err == nil && len(haproxyIngresses) > 0 {
+			haproxyNames := make(map[string]bool)
+			for _, hi := range haproxyIngresses {
+				haproxyNames[hi.Namespace+"/"+hi.Name] = true
+			}
+			filtered := make([]IngressInfo, 0, len(ingresses))
+			for _, ing := range ingresses {
+				if !haproxyNames[ing.Namespace+"/"+ing.Name] {
+					filtered = append(filtered, ing)
+				}
+			}
+			ingresses = append(filtered, haproxyIngresses...)
+		}
 	}
 
 	controller, err := s.detectController()
